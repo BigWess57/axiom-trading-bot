@@ -1,0 +1,15 @@
+services:
+  trading-bot:
+    build: .
+    environment:
+      - AXIOM_AUTH_TOKEN=${AXIOM_AUTH_TOKEN}
+      - AXIOM_REFRESH_TOKEN=${AXIOM_REFRESH_TOKEN}
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - solana-network
+
+networks:
+  solana-network:
+    driver: bridge
