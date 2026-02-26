@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { PulseToken } from "@/lib/types";
+import { PulseToken } from "@/utils/types";
 import { Copy } from "lucide-react";
 
 interface DebugFieldsPanelProps {

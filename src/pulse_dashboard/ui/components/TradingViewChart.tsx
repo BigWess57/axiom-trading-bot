@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { TokenState } from '../lib/types';
+import { TokenState } from '@/utils/types';
 import { useTradingViewChart } from '../hooks/useTradingViewChart';
 import { CandlestickData } from 'lightweight-charts';
 

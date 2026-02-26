@@ -1,6 +1,6 @@
 import { CandlestickData, CandlestickSeries, ColorType, createChart, createSeriesMarkers, IChartApi, ISeriesApi, SeriesMarker, Time } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
-import { TokenState, TradeResult } from '../lib/types';
+import { TokenState, TradeResult } from '@/utils/types';
 
 interface UseTradingViewChartProps {
     data: CandlestickData[];

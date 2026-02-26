@@ -1,7 +1,7 @@
 import { Time, CandlestickData } from 'lightweight-charts';
 import { useEffect, useState, useRef } from 'react';
-import { socket } from '@/lib/socket';
-import { TokenState } from '../lib/types';
+import { socket } from '@/utils/socket';
+import { TokenState } from '@/utils/types';
 
 interface UseCandleDataProps {
     pairAddress: string;

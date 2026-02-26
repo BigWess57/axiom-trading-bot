@@ -3,8 +3,8 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Copy, MessageSquare, MonitorPlay, Trophy, Zap, ExternalLink, Twitter, Globe, Send, Users, Eye, Crown } from "lucide-react";
-import { PulseToken } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { PulseToken } from "@/utils/types";
+import { cn } from "@/utils/utils";
 import { TokenSOL } from '@web3icons/react'
 import { DebugFieldsPanel } from "./DebugFieldsPanel";
 

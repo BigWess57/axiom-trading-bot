@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 
 import Link from 'next/link';
-import { TradeInfo } from '@/lib/types';
+import { TradeInfo } from '@/utils/types';
 import { BarChart2 } from 'lucide-react';
 
 function TradeCard({ trade, solPrice }: { trade: TradeInfo, solPrice: number | null }) {

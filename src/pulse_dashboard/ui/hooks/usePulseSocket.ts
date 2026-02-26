@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { socket } from "@/lib/socket"; // Use singleton
-import { PulseToken, TokenRemovedEvent } from "@/lib/types";
+import { socket } from "@/utils/socket"; // Use singleton
+import { PulseToken, TokenRemovedEvent } from "@/utils/types";
 
 export type TokensByCategory = {
   newPairs: PulseToken[];

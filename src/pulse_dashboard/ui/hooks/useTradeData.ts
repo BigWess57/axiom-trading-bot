@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { socket } from '@/lib/socket';
-import { BotState } from '@/lib/types';
+import { socket } from '@/utils/socket';
+import { BotState } from '@/utils/types';
 
 export function useTradeData() {
   const [botState, setBotState] = useState<BotState | null>(null);

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { TokenState } from '@/lib/types';
+import { TokenState } from '@/utils/types';
 import TradingViewChart from '@/components/TradingViewChart';
 import { useTradeData } from '@/hooks/useTradeData';
 import { useCandleData } from '@/hooks/useCandleData';
