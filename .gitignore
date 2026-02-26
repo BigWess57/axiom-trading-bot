@@ -158,6 +158,9 @@ cython_debug/
 logs/
 *.log
 
+# Data
+data/
+
 # Authentication
 .auth/
 .auth.json
