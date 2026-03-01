@@ -45,33 +45,48 @@ DEFAULT_STRATEGY_CONFIG = {
     'max_market_cap': 18000.0,
 
     # Confidence Calculation
+
     'baseline_confidence_score': 30.0,
     'min_confidence_score': 50.0,
     'good_confidence_score': 70.0,
     
-    'confidence_penalty_high_top10': 15.0,
-    'top10_penalty_threshold': 30.0,
-    'confidence_penalty_high_bundled': 15.0,
-    'bundled_penalty_threshold': 30.0,
-
+    ## Holder Safety
+    'holder_safety_threshold_high': 0.80,
+    'holder_safety_threshold_low': 0.33,
     'confidence_boost_high_holder_safety': 10.0,
-    'confidence_penalty_low_holder_safety': 30.0,
+    'confidence_penalty_low_holder_safety': 40.0,
+
+    ## Top 10 Holders / Bundled
+    'confidence_penalty_high_bundled': 30.0,
+    'confidence_penalty_high_top10': 30.0,
+    'bundled_penalty_threshold': 30.0,
+    'top10_penalty_threshold': 30.0,
+
+    ## ATH Impact
+    'ath_impact_threshold': 0.4,
     'confidence_penalty_ath_impact': 20.0,
+
+    ## Distribution Ratio
+    'distribution_trend_lookback': 30,
+    'max_distribution_ratio_inc': 0.5,
     'confidence_boost_improving_distribution_ratio': 10.0,
     'confidence_penalty_worsening_distribution_ratio': 10.0,
-    
-    'holder_safety_threshold_high': 0.66,
-    'holder_safety_threshold_low': 0.33,
-    'ath_impact_threshold': 0.4,
-    'distribution_trend_lookback': 30,
+
+    ## Activity
     'activity_lookback_seconds': 60,
 
     'min_txns_for_boost': 50,
-    'confidence_boost_high_activity': 10.0,
-    'confidence_boost_buying_pressure': 5.0,
-    'confidence_boost_new_kol': 10.0,
+    'max_txns_inc_for_full_boost': 200,
+    'max_buy_sell_ratio_inc_for_full_boost': 3.0,
     'min_users_watching_increase': 20,
-    'confidence_boost_users_watching': 5.0
+    'max_users_watching_inc_for_full_boost': 50,
+    'max_kols_inc_for_full_boost': 3,
+
+    'confidence_boost_buying_pressure': 5.0,
+    'confidence_boost_high_activity': 10.0,
+    'confidence_boost_new_kol': 10.0,
+    'confidence_boost_users_watching': 5.0,
+    
 }
 
 def get_whole_config():

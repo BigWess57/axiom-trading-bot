@@ -69,7 +69,7 @@ def test_zero_sol_price_returns_zero(strategy):
 # ── Holder safety ─────────────────────────────────────────────────────────────
 
 def test_high_holder_safety_gives_boost(strategy):
-    state = _bare_state(holder_safety_score=0.9)  # > 0.66
+    state = _bare_state(holder_safety_score=1.0)  # max > 0.66
     score = strategy._calculate_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 10.0)
 
@@ -81,7 +81,7 @@ def test_mid_holder_safety_no_change(strategy):
 
 
 def test_low_holder_safety_gives_penalty(strategy):
-    state = _bare_state(holder_safety_score=0.1)  # < 0.33
+    state = _bare_state(holder_safety_score=0.0)  # minimum < 0.33
     score = strategy._calculate_confidence(state, SOL)
     assert score == pytest.approx(max(0.0, BASELINE - 30.0))
 
@@ -134,7 +134,7 @@ def test_improving_distribution_gives_boost(strategy):
     Token current_ratio = 14 < avg_prev → boost.
     market_cap (SOL) = target_USD_ratio * holders / SOL = 14 * 1000 / 150 ≈ 93.3
     """
-    target_ratio = 14  # USD per holder, must be < avg_prev=18.5
+    target_ratio = 9.25  # Exactly 50% better distribution, hitting the linear ceiling
     token = make_token(
         market_cap=target_ratio * 1000 / SOL,
         holders=1000,
@@ -202,14 +202,15 @@ def _activity_state(old_txns: int, new_txns: int, old_buys: int, new_buys: int,
 
 
 def test_high_activity_gives_boost(strategy):
-    """new_txns = 160 - 10 = 150 > min_txns_for_boost=50 → +10."""
+    """new_txns = 210 - 10 = 200 >= max_txns_inc_for_full_boost=200 → +10.
+       buys/sells = 150/50 = 3.0 >= max ratio → +5.0. Total = 15.0."""
     state = _activity_state(
-        old_txns=10, new_txns=160,
-        old_buys=5, new_buys=100,
-        old_sells=5, new_sells=60,
+        old_txns=10, new_txns=210,
+        old_buys=5, new_buys=155,
+        old_sells=5, new_sells=55,
     )
     score = strategy._calculate_confidence(state, SOL)
-    assert score >= BASELINE + 10.0  # At minimum the activity boost
+    assert score == pytest.approx(BASELINE + 15.0)
 
 
 def test_buying_pressure_gives_boost(strategy):
@@ -243,10 +244,10 @@ def test_kol_increase_gives_boost(strategy):
     assert score == pytest.approx(BASELINE + 20.0)
 
 def test_users_watching_increase_gives_boost(strategy):
-    """new_users - old_users > min_increase (20) → +5."""
+    """new_users - old_users = 50 >= max_users_watching_inc_for_full_boost (50) → +5."""
     state = _activity_state(
         old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
-        old_users=0, new_users=25
+        old_users=0, new_users=50
     )
     score = strategy._calculate_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 5.0)
@@ -303,17 +304,17 @@ def test_missing_config_key_raises_value_error():
         StrategyConfig(incomplete_config)
 
 def test_high_top10_gives_penalty(strategy):
-    """top10_holders_percent > 30.0 -> -15 penalty."""
-    token = make_token(top10_holders_percent=40.0)
+    """top10_holders_percent = 60.0 (max ceiling) -> pulls max linear penalty."""
+    token = make_token(top10_holders_percent=60.0)
     state = _bare_state()
     state.token = token
     score = strategy._calculate_confidence(state, SOL)
-    assert score == pytest.approx(BASELINE - 15.0)
+    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_penalty_high_top10))
 
 def test_high_bundled_gives_penalty(strategy):
-    """bundled_percent > 30.0 -> -15 penalty."""
-    token = make_token(bundled_percent=40.0)
+    """bundled_percent = 60.0 (max ceiling) -> pulls max linear penalty."""
+    token = make_token(bundled_percent=60.0)
     state = _bare_state()
     state.token = token
     score = strategy._calculate_confidence(state, SOL)
-    assert score == pytest.approx(BASELINE - 15.0)
+    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_penalty_high_bundled))

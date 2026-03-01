@@ -50,30 +50,41 @@ class ConfidenceConfig:
     min_confidence_score: float
     good_confidence_score: float
     
-    confidence_penalty_high_top10: float
-    top10_penalty_threshold: float
-    confidence_penalty_high_bundled: float
-    bundled_penalty_threshold: float
-    
-    # Weights & Thresholds
-    confidence_boost_high_holder_safety: float
-    confidence_penalty_low_holder_safety: float
-    
-    confidence_boost_improving_distribution_ratio: float
-    confidence_penalty_worsening_distribution_ratio: float
-    
+    # Holder Safety
     holder_safety_threshold_high: float
     holder_safety_threshold_low: float
+    confidence_boost_high_holder_safety: float
+    confidence_penalty_low_holder_safety: float
+
+    # Top 10 Holders / Bundled
+    confidence_penalty_high_bundled: float
+    confidence_penalty_high_top10: float
+    bundled_penalty_threshold: float
+    top10_penalty_threshold: float
+
+    # ATH Impact
     ath_impact_threshold: float
     confidence_penalty_ath_impact: float
+
+    # Distribution Ratio
     distribution_trend_lookback: int
+    max_distribution_ratio_inc: float
+    confidence_boost_improving_distribution_ratio: float
+    confidence_penalty_worsening_distribution_ratio: float
+
+    # Activity
     activity_lookback_seconds: int
 
+    max_txns_inc_for_full_boost: int
+    max_buy_sell_ratio_inc_for_full_boost: float
+    max_users_watching_inc_for_full_boost: int
+    max_kols_inc_for_full_boost: int
     min_txns_for_boost: int
-    confidence_boost_high_activity: float
-    confidence_boost_buying_pressure: float
-    confidence_boost_new_kol: float
     min_users_watching_increase: int
+
+    confidence_boost_buying_pressure: float
+    confidence_boost_high_activity: float
+    confidence_boost_new_kol: float
     confidence_boost_users_watching: float
 
 
@@ -128,25 +139,42 @@ class StrategyConfig:
                 baseline_confidence_score=float(d['baseline_confidence_score']),
                 min_confidence_score=float(d['min_confidence_score']),
                 good_confidence_score=float(d['good_confidence_score']),
-                confidence_penalty_high_top10=float(d['confidence_penalty_high_top10']),
-                top10_penalty_threshold=float(d['top10_penalty_threshold']),
-                confidence_penalty_high_bundled=float(d['confidence_penalty_high_bundled']),
-                bundled_penalty_threshold=float(d['bundled_penalty_threshold']),
-                confidence_boost_high_holder_safety=float(d['confidence_boost_high_holder_safety']),
-                confidence_penalty_low_holder_safety=float(d['confidence_penalty_low_holder_safety']),
-                confidence_boost_improving_distribution_ratio=float(d['confidence_boost_improving_distribution_ratio']),
-                confidence_penalty_worsening_distribution_ratio=float(d['confidence_penalty_worsening_distribution_ratio']),
+                
+                # Holder Safety
                 holder_safety_threshold_high=float(d['holder_safety_threshold_high']),
                 holder_safety_threshold_low=float(d['holder_safety_threshold_low']),
+                confidence_boost_high_holder_safety=float(d['confidence_boost_high_holder_safety']),
+                confidence_penalty_low_holder_safety=float(d['confidence_penalty_low_holder_safety']),
+
+                # Top 10 Holders / Bundled
+                confidence_penalty_high_bundled=float(d['confidence_penalty_high_bundled']),
+                confidence_penalty_high_top10=float(d['confidence_penalty_high_top10']),
+                bundled_penalty_threshold=float(d['bundled_penalty_threshold']),
+                top10_penalty_threshold=float(d['top10_penalty_threshold']),
+
+                # ATH Impact
                 ath_impact_threshold=float(d['ath_impact_threshold']),
                 confidence_penalty_ath_impact=float(d['confidence_penalty_ath_impact']),
+
+                # Distribution Ratio
                 distribution_trend_lookback=int(d['distribution_trend_lookback']),
+                max_distribution_ratio_inc=float(d['max_distribution_ratio_inc']),
+                confidence_boost_improving_distribution_ratio=float(d['confidence_boost_improving_distribution_ratio']),
+                confidence_penalty_worsening_distribution_ratio=float(d['confidence_penalty_worsening_distribution_ratio']),
+
+                # Activity
                 activity_lookback_seconds=int(d['activity_lookback_seconds']),
+
+                max_txns_inc_for_full_boost=int(d['max_txns_inc_for_full_boost']),
+                max_buy_sell_ratio_inc_for_full_boost=float(d['max_buy_sell_ratio_inc_for_full_boost']),
+                max_users_watching_inc_for_full_boost=int(d['max_users_watching_inc_for_full_boost']),
+                max_kols_inc_for_full_boost=int(d['max_kols_inc_for_full_boost']),
                 min_txns_for_boost=int(d['min_txns_for_boost']),
-                confidence_boost_high_activity=float(d['confidence_boost_high_activity']),
-                confidence_boost_buying_pressure=float(d['confidence_boost_buying_pressure']),
-                confidence_boost_new_kol=float(d['confidence_boost_new_kol']),
                 min_users_watching_increase=int(d['min_users_watching_increase']),
+
+                confidence_boost_buying_pressure=float(d['confidence_boost_buying_pressure']),
+                confidence_boost_high_activity=float(d['confidence_boost_high_activity']),
+                confidence_boost_new_kol=float(d['confidence_boost_new_kol']),
                 confidence_boost_users_watching=float(d['confidence_boost_users_watching'])
             )
         except KeyError as e:

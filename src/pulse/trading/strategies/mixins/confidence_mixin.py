@@ -14,23 +14,34 @@ class SecurityConfidenceMixin:
         # 1. Holder Safety Impact
         if state.holder_safety_score is not None:
             hs = state.holder_safety_score
+            hs_high = self.config.confidence.holder_safety_threshold_high
+            hs_low = self.config.confidence.holder_safety_threshold_low
             
-            if hs > self.config.confidence.holder_safety_threshold_high:
-                score += self.config.confidence.confidence_boost_high_holder_safety
-            elif hs > self.config.confidence.holder_safety_threshold_low:
-                # Do nothing in between
-                pass
-            else:
-                score -= self.config.confidence.confidence_penalty_low_holder_safety
+            if hs > hs_high:
+                boost_ratio = (hs - hs_high) / (1.0 - hs_high) if hs_high < 1.0 else 0.0
+                score += self.config.confidence.confidence_boost_high_holder_safety * boost_ratio
+            elif hs < hs_low:
+                penalty_ratio = (hs_low - hs) / hs_low if hs_low > 0.0 else 0.0
+                score -= self.config.confidence.confidence_penalty_low_holder_safety * penalty_ratio
         
         # 2. Security Checkup Impact
-        if token.top10_holders_percent > self.config.confidence.top10_penalty_threshold:
-            logger.debug("Token %s top 10 holders own %.1f%% > %s%%. Confidence penalty applied.", token.ticker, token.top10_holders_percent, self.config.confidence.top10_penalty_threshold)
-            score -= self.config.confidence.confidence_penalty_high_top10
+        top10_thresh = self.config.confidence.top10_penalty_threshold
+        top10_max = self.config.safety.max_top10_percent
+        if token.top10_holders_percent > top10_thresh and top10_max > top10_thresh:
+            max_penalty = self.config.confidence.confidence_penalty_high_top10
+            ratio = min(1.0, (token.top10_holders_percent - top10_thresh) / (top10_max - top10_thresh))
+            penalty = (max_penalty / 2) + (max_penalty / 2) * ratio
+            logger.debug("Token %s top 10 holders own %.1f%% > %s%%. Linear penalty %.1f applied.", token.ticker, token.top10_holders_percent, top10_thresh, penalty)
+            score -= penalty
             
-        if token.bundled_percent > self.config.confidence.bundled_penalty_threshold:
-            logger.debug("Token %s bundled percent %.1f%% > %s%%. Confidence penalty applied.", token.ticker, token.bundled_percent, self.config.confidence.bundled_penalty_threshold)
-            score -= self.config.confidence.confidence_penalty_high_bundled
+        bundled_thresh = self.config.confidence.bundled_penalty_threshold
+        bundled_max = self.config.safety.max_bundled_percent
+        if token.bundled_percent > bundled_thresh and bundled_max > bundled_thresh:
+            max_penalty = self.config.confidence.confidence_penalty_high_bundled
+            ratio = min(1.0, (token.bundled_percent - bundled_thresh) / (bundled_max - bundled_thresh))
+            penalty = (max_penalty / 2) + (max_penalty / 2) * ratio
+            logger.debug("Token %s bundled percent %.1f%% > %s%%. Linear penalty %.1f applied.", token.ticker, token.bundled_percent, bundled_thresh, penalty)
+            score -= penalty
 
         return score
 
@@ -72,7 +83,10 @@ class ChartHealthConfidenceMixin:
                 avg_prev_ratio = sum(past_ratios[:-1]) / len(past_ratios[:-1]) if len(past_ratios) > 1 else latest_ratio
                 
                 if current_ratio < avg_prev_ratio:
-                    score += self.config.confidence.confidence_boost_improving_distribution_ratio
+                    improvement = (avg_prev_ratio - current_ratio) / avg_prev_ratio
+                    max_inc = self.config.confidence.max_distribution_ratio_inc
+                    boost_ratio = min(1.0, improvement / max_inc) if max_inc > 0 else 0.0
+                    score += self.config.confidence.confidence_boost_improving_distribution_ratio * boost_ratio
 
         return score
 
@@ -94,22 +108,45 @@ class ActivityConfidenceMixin:
             
         if old_snapshot:
             new_txns = state.token.txns_total - old_snapshot.txns
-            if new_txns > self.config.confidence.min_txns_for_boost:
-                score += self.config.confidence.confidence_boost_high_activity
+            min_txns = self.config.confidence.min_txns_for_boost
+            if new_txns > min_txns:
+                max_inc = self.config.confidence.max_txns_inc_for_full_boost
+                denom = max(1.0, max_inc - min_txns)
+                boost_ratio = min(1.0, (new_txns - min_txns) / denom)
+                score += self.config.confidence.confidence_boost_high_activity * boost_ratio
             
             new_buys = state.token.buys_total - old_snapshot.buys
             new_sells = state.token.sells_total - old_snapshot.sells
             
-            if new_buys > new_sells:
-                score += self.config.confidence.confidence_boost_buying_pressure
+            ratio = new_buys / max(1, new_sells)
+            if ratio > 1.0:
+                max_ratio_inc = self.config.confidence.max_buy_sell_ratio_inc_for_full_boost
+                denom_ratio = max(0.1, max_ratio_inc - 1.0)
+                boost_ratio = min(1.0, (ratio - 1.0) / denom_ratio)
+                score += self.config.confidence.confidence_boost_buying_pressure * boost_ratio
             
             new_kols = state.token.famous_kols - old_snapshot.kols
             if new_kols > 0:
-                score += self.config.confidence.confidence_boost_new_kol * new_kols
+                score += self.config.confidence.confidence_boost_new_kol * min(new_kols, self.config.confidence.max_kols_inc_for_full_boost)
 
-            new_users = state.token.active_users_watching - old_snapshot.users_watching
-            if new_users > self.config.confidence.min_users_watching_increase:
-                score += self.config.confidence.confidence_boost_users_watching
+            # Smooth active users watching via moving average (+/- 15s window around target points)
+            recent_snaps = [s.users_watching for s in state.snapshots if s.timestamp.timestamp() >= now.timestamp() - 15.0]
+            current_users_vals = recent_snaps + [state.token.active_users_watching]
+            current_users_ma = sum(current_users_vals) / len(current_users_vals)
+            
+            old_window_snaps = [s.users_watching for s in state.snapshots if abs(s.timestamp.timestamp() - old_time) <= 10.0]
+            if old_window_snaps:
+                old_users_ma = sum(old_window_snaps) / len(old_window_snaps)
+            else:
+                old_users_ma = old_snapshot.users_watching
+
+            new_users = current_users_ma - old_users_ma
+            min_users = self.config.confidence.min_users_watching_increase
+            if new_users > min_users:
+                max_users_inc = self.config.confidence.max_users_watching_inc_for_full_boost
+                denom_users = max(1.0, max_users_inc - min_users)
+                boost_ratio = min(1.0, (new_users - min_users) / denom_users)
+                score += self.config.confidence.confidence_boost_users_watching * boost_ratio
         
         return score
 
