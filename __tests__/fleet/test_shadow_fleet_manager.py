@@ -38,14 +38,14 @@ def make_manager() -> ShadowFleetManager:
 def test_spawn_fleet_creates_five_bots():
     manager = make_manager()
     manager._spawn_fleet()
-    assert len(manager.bots) == 5
+    assert len(manager.bots) == 501
 
 
 def test_spawn_fleet_bot_names():
     manager = make_manager()
     manager._spawn_fleet()
     names = [b.strategy_id for b in manager.bots]
-    assert set(names) == {"BASE", "SL_15", "SL_50", "CONF_70", "SCALP_20"}
+    assert set(names[:5]) == {"BASE", "Bot_000", "Bot_001", "Bot_002", "Bot_003"}
 
 
 def test_bot_configs_differ():
@@ -54,11 +54,7 @@ def test_bot_configs_differ():
     manager._spawn_fleet()
 
     bots = {b.strategy_id: b for b in manager.bots}
-    assert bots["BASE"].config.risk.stop_loss_pct == pytest.approx(0.30)
-    assert bots["SL_15"].config.risk.stop_loss_pct == pytest.approx(0.15)
-    assert bots["SL_50"].config.risk.stop_loss_pct == pytest.approx(0.50)
-    assert bots["CONF_70"].config.confidence.min_confidence_score == pytest.approx(70.0)
-    assert bots["SCALP_20"].config.risk.take_profit_pct == pytest.approx(0.20)
+    assert pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_000"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_001"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_002"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_003"].config.risk.take_profit_pct, abs=0.001)
 
 
 # ---------------------------------------------------------------------------

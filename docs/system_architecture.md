@@ -37,7 +37,7 @@
 **Location:** `src/pulse/trading/strategies/`
 
 **Files:**
-- `first_test_strategies.py`: Implements `should_buy`, `should_sell`, and confidence scoring logic.
+- `core_strategy.py` and `mixins/`: Implements `should_buy`, `should_sell`, and modular confidence scoring logic.
 - `strategy_config.py`: Defines configuration dataclasses (`ConfidenceConfig`, `RiskConfig`).
 
 **Functionality:**
@@ -69,5 +69,5 @@
 **Current Ecosystem Status:**
 - **Data Feed**: Stable and typed (Decoder/Tracker working).
 - **Bot Framework**: Abstract base class established.
-- **Strategies**: `FirstTestStrategy` implemented with dynamic position sizing and confidence scoring.
+- **Strategies**: `CoreStrategy` implemented with dynamic position sizing and modular mixin architecture.
 - **Visuals**: Web Dashboard integration active.

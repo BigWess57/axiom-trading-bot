@@ -7,9 +7,8 @@ Design philosophy:
 - make_config() mirrors DEFAULT_STRATEGY_CONFIG so tests reflect real behaviour.
 - Timestamps are in UTC ISO-8601 format to satisfy PulseToken.from_array parsing.
 """
-import pytest
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import Optional
 
 from src.pulse.types import (
     PulseToken,
@@ -21,7 +20,7 @@ from src.pulse.types import (
     SellCategory,
 )
 from src.pulse.trading.strategies.strategy_config import StrategyConfig
-from src.pulse.trading.strategies.first_test_strategies import FirstTestStrategy
+from src.pulse.trading.strategies.core_strategy import CoreStrategy
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +210,6 @@ def make_past_trade(
 # Strategy factory
 # ---------------------------------------------------------------------------
 
-def make_strategy(sol_price: float = 150.0, **config_overrides) -> FirstTestStrategy:
+def make_strategy(sol_price: float = 150.0, **config_overrides) -> CoreStrategy:
     config = make_config(**config_overrides)
-    return FirstTestStrategy(config, lambda: sol_price)
+    return CoreStrategy(config, lambda: sol_price)

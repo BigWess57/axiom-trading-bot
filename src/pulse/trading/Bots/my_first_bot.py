@@ -10,8 +10,8 @@ from datetime import datetime
 from src.pulse.trading.base_bot import BaseTradingBot
 from src.pulse.tracker import PulseTracker
 from src.pulse.types import PulseToken, SellReason, TradeResult, TradeTakenInformation, SellCategory, TokenState
-from src.pulse.trading.strategies.first_test_strategies import FirstTestStrategy
 from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.core_strategy import CoreStrategy
 from src.pulse.trading.dashboard_connector import DashboardConnector
 from src.pulse.trading.Bots.bot_extensions import BotExtensionsMixin
 
@@ -52,7 +52,7 @@ class ExampleTradingBot(BaseTradingBot, BotExtensionsMixin):
         # Initialize strategy
         strategy_config_dict = get_strategy_config()
         self.strategy_config = StrategyConfig(strategy_config_dict)
-        self.strategy = FirstTestStrategy(self.strategy_config, lambda: self.current_sol_price)
+        self.strategy = CoreStrategy(config=self.strategy_config, get_sol_price=lambda: self.current_sol_price)
         
         # TUI setup
         self.enable_tui = config.get('enable_tui', False)

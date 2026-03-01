@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from src.pulse.types import SharedTokenState, TradeTakenInformation, SellReason, TokenState, TradeResult, PulseToken, SellCategory, BotGlobalState
 from src.pulse.trading.strategies.strategy_config import StrategyConfig
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder, ShadowTradeRecord
-from src.pulse.trading.strategies.first_test_strategies import FirstTestStrategy
+from src.pulse.trading.strategies.core_strategy import CoreStrategy
 
 logger = logging.getLogger("VirtualBot")
 
@@ -38,8 +38,9 @@ class VirtualBot:
 
         self._current_sol_price = 0.0
 
-        # Initialize strategy with a lambda to always get latest price from self
-        self.strategy = FirstTestStrategy(config, lambda: self._current_sol_price)
+        # Initialize Strategy
+        self.strategy = CoreStrategy(
+            config=self.config, get_sol_price=lambda: self._current_sol_price)
 
     def process_update(self, shared_state: SharedTokenState, sol_price: float):
         """

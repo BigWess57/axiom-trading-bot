@@ -1,6 +1,6 @@
 # Current Trading Strategy Documentation
 
-This document details the current trading strategy implemented in `src/pulse/trading/Bots/my_first_bot.py` and `src/pulse/trading/strategies/first_test_strategies.py`.
+This document details the current trading strategy implemented in `src/pulse/trading/Bots/my_first_bot.py` and `src/pulse/trading/strategies/core_strategy.py`, supported by modular mixins.
 
 ## Overview
 The bot is designed to trade tokens on the Pulse platform, focusing on the "First Test" strategy. It monitors token updates, new token listings, and token removals in real-time via WebSocket connections.
@@ -21,7 +21,7 @@ Key configuration parameters for the `ExampleTradingBot`:
 | **Cooldown** | 3 minutes | Time to wait before re-entering a token after selling. |
 | **Max Trades Per Token** | 3 | Maximum number of times to trade the same token. |
 
-## Strategy Logic (`FirstTestStrategy`)
+## Strategy Logic (`CoreStrategy`)
 
 ### 1. Buy Logic (`should_buy`)
 A token is considered for purchase only if ALL of the following conditions are met:
