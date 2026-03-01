@@ -301,3 +301,19 @@ def test_missing_config_key_raises_value_error():
     del incomplete_config['starting_balance']
     with pytest.raises(ValueError, match="Missing required strategy configuration key: 'starting_balance'"):
         StrategyConfig(incomplete_config)
+
+def test_high_top10_gives_penalty(strategy):
+    """top10_holders_percent > 30.0 -> -15 penalty."""
+    token = make_token(top10_holders_percent=40.0)
+    state = _bare_state()
+    state.token = token
+    score = strategy._calculate_confidence(state, SOL)
+    assert score == pytest.approx(BASELINE - 15.0)
+
+def test_high_bundled_gives_penalty(strategy):
+    """bundled_percent > 30.0 -> -15 penalty."""
+    token = make_token(bundled_percent=40.0)
+    state = _bare_state()
+    state.token = token
+    score = strategy._calculate_confidence(state, SOL)
+    assert score == pytest.approx(BASELINE - 15.0)

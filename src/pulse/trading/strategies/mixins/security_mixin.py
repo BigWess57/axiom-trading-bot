@@ -45,7 +45,8 @@ class SecurityMixin:
     def _security_checkup(self, token: PulseToken, sol_price: float) -> Optional[str]:
         """
         Perform security checkups.
-        Returns None if all checks pass, or a string describing the failure reason.
+        Returns None if all checks pass.
+        If any of the checks fail, returns a string describing the failure reason.
         """
         
         # All these are now configurable

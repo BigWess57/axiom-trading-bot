@@ -50,6 +50,11 @@ class ConfidenceConfig:
     min_confidence_score: float
     good_confidence_score: float
     
+    confidence_penalty_high_top10: float
+    top10_penalty_threshold: float
+    confidence_penalty_high_bundled: float
+    bundled_penalty_threshold: float
+    
     # Weights & Thresholds
     confidence_boost_high_holder_safety: float
     confidence_penalty_low_holder_safety: float
@@ -123,6 +128,10 @@ class StrategyConfig:
                 baseline_confidence_score=float(d['baseline_confidence_score']),
                 min_confidence_score=float(d['min_confidence_score']),
                 good_confidence_score=float(d['good_confidence_score']),
+                confidence_penalty_high_top10=float(d['confidence_penalty_high_top10']),
+                top10_penalty_threshold=float(d['top10_penalty_threshold']),
+                confidence_penalty_high_bundled=float(d['confidence_penalty_high_bundled']),
+                bundled_penalty_threshold=float(d['bundled_penalty_threshold']),
                 confidence_boost_high_holder_safety=float(d['confidence_boost_high_holder_safety']),
                 confidence_penalty_low_holder_safety=float(d['confidence_penalty_low_holder_safety']),
                 confidence_boost_improving_distribution_ratio=float(d['confidence_boost_improving_distribution_ratio']),

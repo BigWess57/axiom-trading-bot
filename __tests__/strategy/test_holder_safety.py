@@ -61,11 +61,11 @@ def test_all_broke_holders_score_is_zero(strategy):
 
 
 def test_mixed_holders_correct_ratio(strategy):
-    """20 rich + 10 broke out of 30 → score ≈ 0.667."""
+    """20 rich + 5 broke out of 25 → score ≈ 0.8."""
     state = make_state()
-    holders = _make_mixed_holders(rich=20, broke=10)
+    holders = _make_mixed_holders(rich=20, broke=5)
     strategy.check_holder_safety(state, holders)
-    assert state.holder_safety_score == pytest.approx(20 / 30, rel=1e-3)
+    assert state.holder_safety_score == pytest.approx(20 / 25, rel=1e-3)
 
 
 def test_score_only_checks_configured_count(strategy):

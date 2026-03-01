@@ -6,12 +6,12 @@ from src.pulse.types import SellReason, SellCategory, TradeTakenInformation, Tok
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.strategies.mixins.security_mixin import SecurityMixin
 from src.pulse.trading.strategies.mixins.risk_mixin import RiskMixin
-from src.pulse.trading.strategies.mixins.signal_mixin import SignalMixin
+from src.pulse.trading.strategies.mixins.buy_rules_mixin import BuyRulesMixin
 from src.pulse.trading.strategies.mixins.confidence_mixin import ConfidenceMixin
 
 logger = logging.getLogger(__name__)
 
-class CoreStrategy(SecurityMixin, RiskMixin, SignalMixin, ConfidenceMixin):
+class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
     """
     Core trading strategy acting as the main orchestrator.
     Logic is delegated to mixins.
@@ -46,11 +46,11 @@ class CoreStrategy(SecurityMixin, RiskMixin, SignalMixin, ConfidenceMixin):
         if security_issue:
             return False, 0.0, 0.0
 
+        if not self._pass_buy_rules_checkup(token, past_trades_on_token, sol_price):
+            return False, 0.0, 0.0
+            
         confidence = self._calculate_confidence(state, sol_price)
         if confidence < self.config.confidence.min_confidence_score:
-            return False, 0.0, 0.0
-
-        if not self._check_for_buy_signal(token, past_trades_on_token, sol_price):
             return False, 0.0, 0.0
 
         size_multiplier = 0.5

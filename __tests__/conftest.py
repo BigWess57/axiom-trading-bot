@@ -65,10 +65,10 @@ def make_token(**overrides) -> PulseToken:
         protocol="raydium",
         category="finalStretch",
         # Holder safety — all pass
-        top10_holders_percent=40.0,   # < 50
+        top10_holders_percent=25.0,   # < 30 (confidence penalty line)
         dev_holding_percent=10.0,     # < 20
         insiders_percent=20.0,        # < 30
-        bundled_percent=30.0,         # < 50
+        bundled_percent=25.0,         # < 30 (confidence penalty line)
         holders=500,
         # Financial
         volume_total=100.0,           # > market_cap=80

@@ -26,7 +26,7 @@ def test_passes_clean_token(strategy):
 # ── Individual failure cases ──────────────────────────────────────────────────
 
 def test_fails_top10_holders(strategy):
-    token = make_token(top10_holders_percent=51.0)  # max = 50
+    token = make_token(top10_holders_percent=61.0)  # max = 60
     result = strategy._security_checkup(token, SOL)
     assert result is not None
     assert "Top 10" in result
@@ -47,7 +47,7 @@ def test_fails_insiders(strategy):
 
 
 def test_fails_bundled(strategy):
-    token = make_token(bundled_percent=51.0)  # max = 50
+    token = make_token(bundled_percent=71.0)  # max = 70
     result = strategy._security_checkup(token, SOL)
     assert result is not None
     assert "Bundled" in result
@@ -87,7 +87,7 @@ def test_fails_volume_fees_ratio(strategy):
 
 def test_passes_at_exact_top10_limit(strategy):
     """Exactly at the limit should still pass (strict >)."""
-    token = make_token(top10_holders_percent=50.0)
+    token = make_token(top10_holders_percent=60.0)
     assert strategy._security_checkup(token, SOL) is None
 
 

@@ -23,7 +23,7 @@ DEFAULT_STRATEGY_CONFIG = {
     'cooldown_minutes': 3,          # Chill time after selling before rebuying same token
 
     # Safety Checks (Holders)
-    'holder_check_count': 30,       # Number of top holders to check
+    'holder_check_count': 25,       # Number of top holders to check
     'min_holder_sol_balance': 1.0,  # Min SOL for top holders to be considered "safe"
 
     # System Settings
@@ -31,11 +31,11 @@ DEFAULT_STRATEGY_CONFIG = {
     'enable_dashboard': True,       # Enable dashboard
     
 
-    # Security Checkup Limits
-    'max_top10_percent': 50.0,
+    # Security Checkup Limits (critical ones)
+    'max_top10_percent': 60.0,
     'max_dev_holding_percent': 20.0,
     'max_insiders_percent': 30.0,
-    'max_bundled_percent': 50.0,
+    'max_bundled_percent': 60.0,
     'min_pro_trader_percent': 20.0,
     'max_volume_fees_ratio': 20000.0,
 
@@ -48,6 +48,11 @@ DEFAULT_STRATEGY_CONFIG = {
     'baseline_confidence_score': 30.0,
     'min_confidence_score': 50.0,
     'good_confidence_score': 70.0,
+    
+    'confidence_penalty_high_top10': 15.0,
+    'top10_penalty_threshold': 30.0,
+    'confidence_penalty_high_bundled': 15.0,
+    'bundled_penalty_threshold': 30.0,
 
     'confidence_boost_high_holder_safety': 10.0,
     'confidence_penalty_low_holder_safety': 30.0,

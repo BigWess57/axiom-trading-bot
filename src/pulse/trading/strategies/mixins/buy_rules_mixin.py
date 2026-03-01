@@ -3,12 +3,12 @@ from datetime import datetime, timezone
 from src.pulse.types import PulseToken, TradeResult
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
-class SignalMixin:
+class BuyRulesMixin:
     """Mixin for strategy buy signaling rules"""
     
     config: StrategyConfig
 
-    def _check_for_buy_signal(self, token: PulseToken, past_trades_on_token: List[TradeResult], sol_price: float) -> bool:
+    def _pass_buy_rules_checkup(self, token: PulseToken, past_trades_on_token: List[TradeResult], sol_price: float) -> bool:
         """Check for buy signal"""
         # Check Trade Limits
         if len(past_trades_on_token) >= self.config.risk.max_trades_per_token:
@@ -33,7 +33,7 @@ class SignalMixin:
             return False
         if token.market_cap * sol_price > self.config.buy_rules.max_market_cap:
             return False
-        if token.volume_total < token.market_cap:
-            return False
+        # if token.volume_total < token.market_cap:
+        #     return False
         
         return True
