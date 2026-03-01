@@ -268,6 +268,8 @@ class TokenSnapshot:
     buys: int
     sells: int
     holders: int
+    kols: int = 0
+    users_watching: int = 0
 
 
 @dataclass

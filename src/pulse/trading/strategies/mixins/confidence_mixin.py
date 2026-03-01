@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import logging
 from src.pulse.types import TokenState
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +51,19 @@ class ConfidenceMixin:
             current_holders = token.holders if token.holders > 0 else 1
             current_ratio = (token.market_cap * sol_price) / current_holders
             
-            # Avg Past Ratio (last N)
+            # Avg Past Ratio (last N, up to 10 sampled evenly)
+            window_snapshots = state.snapshots[-lookback:]
+            n_snapshots = len(window_snapshots)
+            
+            if n_snapshots > 10:
+                # Sample exactly 10 evenly spaced indices, including first and last
+                indices = [int(i * (n_snapshots - 1) / 9) for i in range(10)]
+                sampled_snapshots = [window_snapshots[i] for i in indices]
+            else:
+                sampled_snapshots = window_snapshots
+
             past_ratios = []
-            for s in state.snapshots[-lookback:]:
+            for s in sampled_snapshots:
                 h = s.holders if s.holders > 0 else 1
                 r = s.market_cap / h
                 past_ratios.append(r)
@@ -81,15 +91,25 @@ class ConfidenceMixin:
             
         if old_snapshot:
             # Delta Txns
-            new_txns = state.snapshots[-1].txns - old_snapshot.txns
+            new_txns = state.token.txns_total - old_snapshot.txns
             if new_txns > self.config.confidence.min_txns_for_boost:
                 score += self.config.confidence.confidence_boost_high_activity
             
             # Delta Buys vs Sells
-            new_buys = state.snapshots[-1].buys - old_snapshot.buys
-            new_sells = state.snapshots[-1].sells - old_snapshot.sells
+            new_buys = state.token.buys_total - old_snapshot.buys
+            new_sells = state.token.sells_total - old_snapshot.sells
             
             if new_buys > new_sells:
                 score += self.config.confidence.confidence_boost_buying_pressure
+            
+            # KOLs momentum
+            new_kols = state.token.famous_kols - old_snapshot.kols
+            if new_kols > 0:
+                score += self.config.confidence.confidence_boost_new_kol * new_kols
+
+            # Users watching momentum
+            new_users = state.token.active_users_watching - old_snapshot.users_watching
+            if new_users > self.config.confidence.min_users_watching_increase:
+                score += self.config.confidence.confidence_boost_users_watching
         
         return max(0.0, min(100.0, score))

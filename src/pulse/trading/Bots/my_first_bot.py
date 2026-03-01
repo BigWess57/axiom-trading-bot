@@ -10,7 +10,7 @@ from datetime import datetime
 from src.pulse.trading.base_bot import BaseTradingBot
 from src.pulse.tracker import PulseTracker
 from src.pulse.types import PulseToken, SellReason, TradeResult, TradeTakenInformation, SellCategory, TokenState
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.strategies.core_strategy import CoreStrategy
 from src.pulse.trading.dashboard_connector import DashboardConnector
 from src.pulse.trading.Bots.bot_extensions import BotExtensionsMixin
@@ -22,7 +22,7 @@ from src.utils.async_utils import bridge_callback
 
 from axiomtradeapi.websocket.client import AxiomTradeWebSocketClient
 
-from src.config.strategy_settings import get_whole_config, get_strategy_config
+from src.config.default_strategy import get_whole_config, get_strategy_config
 
 # Configure logging
 logging.basicConfig(

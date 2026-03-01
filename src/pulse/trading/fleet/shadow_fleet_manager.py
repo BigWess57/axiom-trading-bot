@@ -9,8 +9,8 @@ from src.pulse.types import PulseToken, SharedTokenState, TokenSnapshot
 from src.pulse.trading.fleet.virtual_bot import VirtualBot
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder
 from src.pulse.trading.fleet.strategy_randomizer import StrategyRandomizer
-from src.config.strategy_settings import DEFAULT_STRATEGY_CONFIG
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 logger = logging.getLogger("ShadowFleetManager")
 
@@ -226,7 +226,9 @@ class ShadowFleetManager:
             txns=token.txns_total,
             buys=token.buys_total,
             sells=token.sells_total,
-            holders=token.holders
+            holders=token.holders,
+            kols=token.famous_kols,
+            users_watching=token.active_users_watching
         )
 
         # Limit history (3 minutes @ 2s = 90 snapshots)

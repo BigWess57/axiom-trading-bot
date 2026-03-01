@@ -4,7 +4,7 @@ from typing import Dict, List
 from datetime import datetime, timezone
 
 from src.pulse.types import SharedTokenState, TradeTakenInformation, SellReason, TokenState, TradeResult, PulseToken, SellCategory, BotGlobalState
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder, ShadowTradeRecord
 from src.pulse.trading.strategies.core_strategy import CoreStrategy
 

@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
-from src.config.strategy_settings import DEFAULT_STRATEGY_CONFIG
+from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
 
 class StrategyRandomizer:
     """Utility to generate randomized strategy configurations for the Shadow Fleet."""

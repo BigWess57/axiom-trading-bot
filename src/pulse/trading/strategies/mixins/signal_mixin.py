@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime, timezone
 from src.pulse.types import PulseToken, TradeResult
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 class SignalMixin:
     """Mixin for strategy buy signaling rules"""

@@ -19,7 +19,7 @@ from src.pulse.types import (
     SellReason,
     SellCategory,
 )
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.strategies.core_strategy import CoreStrategy
 
 
@@ -27,49 +27,8 @@ from src.pulse.trading.strategies.core_strategy import CoreStrategy
 # Config
 # ---------------------------------------------------------------------------
 
-DEFAULT_CONFIG = {
-    # Account
-    "starting_balance": 20,
-    "fees_percentage": 0.03,
-    # Risk
-    "max_position_size": 1.0,
-    "max_daily_trades": 20,
-    "stop_loss_pct": 0.30,
-    "take_profit_pct": 0.60,
-    "max_holding_time": 300,
-    "max_trades_per_token": 3,
-    "cooldown_minutes": 3,
-    # Safety
-    "min_holder_sol_balance": 1.0,
-    "holder_check_count": 30,
-    "max_top10_percent": 50.0,
-    "max_dev_holding_percent": 20.0,
-    "max_insiders_percent": 30.0,
-    "max_bundled_percent": 50.0,
-    "min_pro_trader_percent": 20.0,
-    "max_volume_fees_ratio": 20000.0,
-    # Buy rules
-    "max_token_age_seconds": 600,
-    "min_market_cap": 9000.0,
-    "max_market_cap": 18000.0,
-    # Confidence
-    "baseline_confidence_score": 30.0,
-    "min_confidence_score": 50.0,
-    "good_confidence_score": 70.0,
-    "confidence_boost_high_holder_safety": 10.0,
-    "confidence_penalty_low_holder_safety": 30.0,
-    "confidence_boost_improving_distribution_ratio": 10.0,
-    "confidence_penalty_worsening_distribution_ratio": 10.0,
-    "holder_safety_threshold_high": 0.66,
-    "holder_safety_threshold_low": 0.33,
-    "ath_impact_threshold": 0.4,
-    "confidence_penalty_ath_impact": 20.0,
-    "distribution_trend_lookback": 5,
-    "activity_lookback_seconds": 60,
-    "min_txns_for_boost": 50,
-    "confidence_boost_high_activity": 10.0,
-    "confidence_boost_buying_pressure": 5.0,
-}
+from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
+DEFAULT_CONFIG = DEFAULT_STRATEGY_CONFIG.copy()
 
 
 def make_config(**overrides) -> StrategyConfig:
@@ -141,6 +100,8 @@ def make_snapshot(seconds_ago: int = 0, **overrides) -> TokenSnapshot:
         buys=60,
         sells=40,
         holders=500,
+        kols=0,
+        users_watching=0,
     )
     defaults.update(overrides)
     return TokenSnapshot(**defaults)

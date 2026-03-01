@@ -6,7 +6,8 @@ contribution to the overall score (in addition to the baseline).
 """
 import pytest
 from datetime import datetime, timezone, timedelta
-from __tests__.conftest import make_token, make_state, make_strategy, make_snapshot
+from __tests__.conftest import make_token, make_state, make_strategy, make_snapshot, DEFAULT_CONFIG
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 
 SOL = 150.0
@@ -32,6 +33,9 @@ def strategy():
         min_txns_for_boost=50,
         confidence_boost_high_activity=10.0,
         confidence_boost_buying_pressure=5.0,
+        confidence_boost_new_kol=10.0,
+        min_users_watching_increase=20,
+        confidence_boost_users_watching=5.0,
     )
 
 
@@ -131,7 +135,15 @@ def test_improving_distribution_gives_boost(strategy):
     market_cap (SOL) = target_USD_ratio * holders / SOL = 14 * 1000 / 150 ≈ 93.3
     """
     target_ratio = 14  # USD per holder, must be < avg_prev=18.5
-    token = make_token(market_cap=target_ratio * 1000 / SOL, holders=1000)
+    token = make_token(
+        market_cap=target_ratio * 1000 / SOL,
+        holders=1000,
+        txns_total=100,  # Match defaults from make_snapshot so delta is 0
+        buys_total=60,
+        sells_total=40,
+        famous_kols=0,
+        active_users_watching=0
+    )
     state = _bare_state()
     state.token = token
     state.snapshots = _make_distribution_snapshots([20, 19, 18, 17, 16])
@@ -169,13 +181,22 @@ def test_improving_distribution_gives_boost(strategy):
 # ── Activity (txns in last 60s) ───────────────────────────────────────────────
 
 def _activity_state(old_txns: int, new_txns: int, old_buys: int, new_buys: int,
-                    old_sells: int, new_sells: int) -> object:
+                    old_sells: int, new_sells: int, old_kols: int = 0, new_kols: int = 0,
+                    old_users: int = 0, new_users: int = 0) -> object:
     """Snapshots spanning the 60-second activity window."""
     state = _bare_state()
+    
+    # Update the actual token to reflect the latest state
+    state.token.txns_total = new_txns
+    state.token.buys_total = new_buys
+    state.token.sells_total = new_sells
+    state.token.famous_kols = new_kols
+    state.token.active_users_watching = new_users
+
     # Snapshot just outside the 60s window → used as baseline
-    old = make_snapshot(seconds_ago=90, txns=old_txns, buys=old_buys, sells=old_sells)
+    old = make_snapshot(seconds_ago=90, txns=old_txns, buys=old_buys, sells=old_sells, kols=old_kols, users_watching=old_users)
     # Recent snapshot (within window)
-    recent = make_snapshot(seconds_ago=10, txns=new_txns, buys=new_buys, sells=new_sells)
+    recent = make_snapshot(seconds_ago=10, txns=new_txns, buys=new_buys, sells=new_sells, kols=new_kols, users_watching=new_users)
     state.snapshots = [old, recent]
     return state
 
@@ -212,6 +233,33 @@ def test_no_activity_boost_low_txns(strategy):
     score = strategy._calculate_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
+def test_kol_increase_gives_boost(strategy):
+    """new_kols > old_kols → +10."""
+    state = _activity_state(
+        old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
+        old_kols=0, new_kols=2
+    )
+    score = strategy._calculate_confidence(state, SOL)
+    assert score == pytest.approx(BASELINE + 20.0)
+
+def test_users_watching_increase_gives_boost(strategy):
+    """new_users - old_users > min_increase (20) → +5."""
+    state = _activity_state(
+        old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
+        old_users=0, new_users=25
+    )
+    score = strategy._calculate_confidence(state, SOL)
+    assert score == pytest.approx(BASELINE + 5.0)
+
+def test_users_watching_insufficient_increase_no_boost(strategy):
+    """new_users - old_users <= min_increase (20) → no boost."""
+    state = _activity_state(
+        old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
+        old_users=0, new_users=10
+    )
+    score = strategy._calculate_confidence(state, SOL)
+    assert score == pytest.approx(BASELINE)
+
 
 # ── Score clamping ────────────────────────────────────────────────────────────
 
@@ -239,7 +287,17 @@ def test_score_cannot_exceed_100(strategy):
         old_buys=0, new_buys=80,
         old_sells=0, new_sells=10,
     )
+    state.token.txns_total = 100
+    state.token.buys_total = 80
+    state.token.sells_total = 10
     state.holder_safety_score = 0.9
     state.ath_market_cap = 0.0
     score = strategy_high._calculate_confidence(state, SOL)
     assert score <= 100.0
+
+def test_missing_config_key_raises_value_error():
+    """Verify that omitting a required config key raises ValueError."""
+    incomplete_config = DEFAULT_CONFIG.copy()
+    del incomplete_config['starting_balance']
+    with pytest.raises(ValueError, match="Missing required strategy configuration key: 'starting_balance'"):
+        StrategyConfig(incomplete_config)

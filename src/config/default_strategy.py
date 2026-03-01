@@ -58,12 +58,15 @@ DEFAULT_STRATEGY_CONFIG = {
     'holder_safety_threshold_high': 0.66,
     'holder_safety_threshold_low': 0.33,
     'ath_impact_threshold': 0.4,
-    'distribution_trend_lookback': 5,
+    'distribution_trend_lookback': 30,
     'activity_lookback_seconds': 60,
 
     'min_txns_for_boost': 50,
     'confidence_boost_high_activity': 10.0,
     'confidence_boost_buying_pressure': 5.0,
+    'confidence_boost_new_kol': 10.0,
+    'min_users_watching_increase': 20,
+    'confidence_boost_users_watching': 5.0
 }
 
 def get_whole_config():

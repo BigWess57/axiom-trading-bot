@@ -1,7 +1,7 @@
 from typing import List, Optional
 import logging
 from src.pulse.types import PulseToken, TokenState
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 logger = logging.getLogger(__name__)
 

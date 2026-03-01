@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import logging
 
 from src.pulse.types import SellReason, SellCategory, TradeTakenInformation, TokenState
-from src.pulse.trading.strategies.strategy_config import StrategyConfig
+from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.strategies.mixins.security_mixin import SecurityMixin
 from src.pulse.trading.strategies.mixins.risk_mixin import RiskMixin
 from src.pulse.trading.strategies.mixins.signal_mixin import SignalMixin
