@@ -89,10 +89,10 @@ class VirtualBot:
         temp_state = self._create_strategy_state(shared_state)
         
         # Run Strategy
-        should_buy, size_mult, confidence = self.strategy.should_buy(temp_state)
+        should_buy, position_size, confidence = self.strategy.should_buy(temp_state)
         
         if should_buy:
-            self._execute_virtual_buy(shared_state.token, size_mult, confidence)
+            self._execute_virtual_buy(shared_state.token, position_size, confidence)
 
     def _manage_active_trade(self, shared_state: SharedTokenState):
         """Check if we should exit a trade"""
@@ -127,7 +127,7 @@ class VirtualBot:
             # Force close any remaining open trades
             self.shutdown()
 
-    def _execute_virtual_buy(self, token: PulseToken, size_multiplier: float, confidence: float):
+    def _execute_virtual_buy(self, token: PulseToken, position_size: float, confidence: float):
         market_cap_usd = token.market_cap * self._current_sol_price
         
         # Log
@@ -140,7 +140,7 @@ class VirtualBot:
             time_bought=datetime.now(timezone.utc),
             current_market_cap=market_cap_usd,
             current_curve_pct=token.bonding_curve_percentage,
-            position_size=1.0 * size_multiplier,
+            position_size=position_size,
             confidence=confidence,
         )
         self.active_positions[token.pair_address] = trade

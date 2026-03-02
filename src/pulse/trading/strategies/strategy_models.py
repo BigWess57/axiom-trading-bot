@@ -16,6 +16,7 @@ class AccountConfig:
 class RiskConfig:
     """Risk configuration"""
     max_position_size: float
+    min_position_size: float
     max_daily_trades: int
     stop_loss_pct: float
     take_profit_pct: float
@@ -70,7 +71,6 @@ class ConfidenceConfig:
     distribution_trend_lookback: int
     max_distribution_ratio_inc: float
     confidence_boost_improving_distribution_ratio: float
-    confidence_penalty_worsening_distribution_ratio: float
 
     # Activity
     activity_lookback_seconds: int
@@ -109,6 +109,7 @@ class StrategyConfig:
             
             self.risk = RiskConfig(
                 max_position_size=float(d['max_position_size']),
+                min_position_size=float(d['min_position_size']),
                 max_daily_trades=int(d['max_daily_trades']),
                 stop_loss_pct=float(d['stop_loss_pct']),
                 take_profit_pct=float(d['take_profit_pct']),
@@ -160,7 +161,6 @@ class StrategyConfig:
                 distribution_trend_lookback=int(d['distribution_trend_lookback']),
                 max_distribution_ratio_inc=float(d['max_distribution_ratio_inc']),
                 confidence_boost_improving_distribution_ratio=float(d['confidence_boost_improving_distribution_ratio']),
-                confidence_penalty_worsening_distribution_ratio=float(d['confidence_penalty_worsening_distribution_ratio']),
 
                 # Activity
                 activity_lookback_seconds=int(d['activity_lookback_seconds']),

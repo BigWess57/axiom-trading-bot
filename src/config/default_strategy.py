@@ -12,6 +12,7 @@ DEFAULT_STRATEGY_CONFIG = {
 
     # Position Sizing
     'max_position_size': 1,       # 1 SOL max per trade
+    'min_position_size': 0.3,    # 0.3 SOL min per trade
     'max_daily_trades': 20,         # Max 20 trades per day
 
     # Risk Management
@@ -46,14 +47,14 @@ DEFAULT_STRATEGY_CONFIG = {
 
     # Confidence Calculation
 
-    'baseline_confidence_score': 30.0,
+    'baseline_confidence_score': 20.0,
     'min_confidence_score': 50.0,
-    'good_confidence_score': 70.0,
+    'good_confidence_score': 100.0,
     
     ## Holder Safety
     'holder_safety_threshold_high': 0.80,
     'holder_safety_threshold_low': 0.33,
-    'confidence_boost_high_holder_safety': 10.0,
+    'confidence_boost_high_holder_safety': 5.0,
     'confidence_penalty_low_holder_safety': 40.0,
 
     ## Top 10 Holders / Bundled
@@ -68,9 +69,8 @@ DEFAULT_STRATEGY_CONFIG = {
 
     ## Distribution Ratio
     'distribution_trend_lookback': 30,
-    'max_distribution_ratio_inc': 0.5,
-    'confidence_boost_improving_distribution_ratio': 10.0,
-    'confidence_penalty_worsening_distribution_ratio': 10.0,
+    'max_distribution_ratio_inc': 0.4,
+    'confidence_boost_improving_distribution_ratio': 15.0,
 
     ## Activity
     'activity_lookback_seconds': 60,
@@ -82,10 +82,10 @@ DEFAULT_STRATEGY_CONFIG = {
     'max_users_watching_inc_for_full_boost': 50,
     'max_kols_inc_for_full_boost': 3,
 
-    'confidence_boost_buying_pressure': 5.0,
-    'confidence_boost_high_activity': 10.0,
+    'confidence_boost_buying_pressure': 15.0,
+    'confidence_boost_high_activity': 15.0,
     'confidence_boost_new_kol': 10.0,
-    'confidence_boost_users_watching': 5.0,
+    'confidence_boost_users_watching': 7.0,
     
 }
 

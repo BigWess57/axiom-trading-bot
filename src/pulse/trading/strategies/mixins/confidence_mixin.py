@@ -80,7 +80,14 @@ class ChartHealthConfidenceMixin:
             
             if past_ratios:
                 latest_ratio = past_ratios[-1]
-                avg_prev_ratio = sum(past_ratios[:-1]) / len(past_ratios[:-1]) if len(past_ratios) > 1 else latest_ratio
+                if len(past_ratios) > 1:
+                    prev_ratios = past_ratios[:-1]
+                    # Apply linear weighting so more recent snapshots matter more
+                    weights = range(1, len(prev_ratios) + 1)
+                    weighted_sum = sum(r * w for r, w in zip(prev_ratios, weights))
+                    avg_prev_ratio = weighted_sum / sum(weights)
+                else:
+                    avg_prev_ratio = latest_ratio
                 
                 if current_ratio < avg_prev_ratio:
                     improvement = (avg_prev_ratio - current_ratio) / avg_prev_ratio

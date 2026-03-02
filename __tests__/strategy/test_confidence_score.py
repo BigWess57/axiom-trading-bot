@@ -28,7 +28,6 @@ def strategy():
         confidence_penalty_ath_impact=20.0,
         distribution_trend_lookback=5,
         confidence_boost_improving_distribution_ratio=10.0,
-        confidence_penalty_worsening_distribution_ratio=10.0,
         activity_lookback_seconds=60,
         min_txns_for_boost=50,
         confidence_boost_high_activity=10.0,
@@ -130,11 +129,11 @@ def _make_distribution_snapshots(ratios: list) -> list:
 def test_improving_distribution_gives_boost(strategy):
     """
     Ratio is decreasing (more holders relative to MC) → +10.
-    Snapshots: past_ratios=[20,19,18,17,16] (USD/holder), avg_prev=18.5, latest=16.
-    Token current_ratio = 14 < avg_prev → boost.
-    market_cap (SOL) = target_USD_ratio * holders / SOL = 14 * 1000 / 150 ≈ 93.3
+    Snapshots: past_ratios=[20,19,18,17,16] (USD/holder), LWMA avg_prev=18.0, latest=16.
+    Token current_ratio = 10.8 < avg_prev → boost.
+    market_cap (SOL) = target_USD_ratio * holders / SOL = 10.8 * 1000 / 150 = 72
     """
-    target_ratio = 9.25  # Exactly 50% better distribution, hitting the linear ceiling
+    target_ratio = 10.8  # Exactly 40% better distribution, hitting the linear ceiling
     token = make_token(
         market_cap=target_ratio * 1000 / SOL,
         holders=1000,
@@ -149,23 +148,6 @@ def test_improving_distribution_gives_boost(strategy):
     state.snapshots = _make_distribution_snapshots([20, 19, 18, 17, 16])
     score = strategy._calculate_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 10.0)
-
-
-# def test_worsening_distribution_gives_penalty(strategy):
-#     """
-#     Ratio is increasing (fewer holders relative to MC) → -10.
-#     Snapshots: past_ratios=[10,12,14,16,18] (USD/holder), avg_prev=13, latest=18.
-#     Token current_ratio = 20 > avg_prev=13 → penalty.
-#     market_cap (SOL) = 20 * 1000 / 150 ≈ 133.3
-#     """
-#     target_ratio = 20  # USD per holder, must be > avg_prev=13
-#     token = make_token(market_cap=target_ratio * 1000 / SOL, holders=1000)
-#     state = _bare_state()
-#     state.token = token
-#     state.snapshots = _make_distribution_snapshots([10, 12, 14, 16, 18])
-#     score = strategy._calculate_confidence(state, SOL)
-#     assert score == pytest.approx(BASELINE - 10.0)
-
 
 # def test_still_changes_distribution_without_enough_snapshots(strategy):
 #     """Fewer than lookback=5 snapshots → distribution factor still checked on these ones."""

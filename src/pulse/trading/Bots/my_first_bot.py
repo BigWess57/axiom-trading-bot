@@ -70,9 +70,8 @@ class ExampleTradingBot(BaseTradingBot, BotExtensionsMixin):
         """Analyze token state for signals"""
         active_trades_count = sum(1 for t in self.tokens.values() if t.active_trade)
         
-        should_buy, size_multiplier, confidence = self.strategy.should_buy(state)
+        should_buy, position_size_for_buy, confidence = self.strategy.should_buy(state)
         if should_buy and active_trades_count < 5:
-            position_size_for_buy = self.config['max_position_size'] * size_multiplier
             logger.info(f"🚀 BUY SIGNAL for {state.token.ticker} (Size: {position_size_for_buy:.2f} SOL, Confidence: {confidence:.2f})")
             self.execute_trade("BUY", state.token.pair_address, position_size_for_buy=position_size_for_buy)
 

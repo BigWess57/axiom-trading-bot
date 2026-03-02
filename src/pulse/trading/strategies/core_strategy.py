@@ -29,7 +29,7 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
         self.get_sol_price = get_sol_price
     
     def should_buy(self, state: TokenState) -> Tuple[bool, float, float]:
-        """Evaluate if we should buy this token. Returns (should_buy, size_multiplier, confidence)"""
+        """Evaluate if we should buy this token. Returns (should_buy, position_size, confidence)"""
         token = state.token
         past_trades_on_token = state.past_trades
         
@@ -50,15 +50,21 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
             return False, 0.0, 0.0
             
         confidence = self._calculate_confidence(state, sol_price)
-        if confidence < self.config.confidence.min_confidence_score:
+
+        min_confidence_for_buy = self.config.confidence.min_confidence_score
+        max_score = self.config.confidence.good_confidence_score
+
+        if confidence < min_confidence_for_buy:
             return False, 0.0, 0.0
 
-        size_multiplier = 0.5
-        if confidence >= self.config.confidence.good_confidence_score:
-            size_multiplier = 1.0
+        if confidence >= max_score:
+            position_size = self.config.risk.max_position_size
+        else:
+            ratio = (confidence - min_confidence_for_buy) / (max_score - min_confidence_for_buy)
+            position_size = self.config.risk.min_position_size + ratio * (self.config.risk.max_position_size - self.config.risk.min_position_size)
 
-        logger.info(f"SHOULD BUY signal for {token.ticker} with confidence {confidence:.2f} (Size: {size_multiplier}x)")
-        return True, size_multiplier, confidence
+        logger.info(f"SHOULD BUY signal for {token.ticker} with confidence {confidence:.2f} (Size: {position_size:.3f} SOL)")
+        return True, position_size, confidence
     
     def should_sell(self, trade_info: TradeTakenInformation) -> Optional[SellReason]:
         """Evaluate if we should sell this token"""

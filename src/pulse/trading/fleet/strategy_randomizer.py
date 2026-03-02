@@ -52,7 +52,6 @@ class StrategyRandomizer:
             # Boosts & Penalties
             conf["confidence_penalty_ath_impact"] = round(random.uniform(10.0, 30.0), 1)
             conf["confidence_boost_improving_distribution_ratio"] = round(random.uniform(5.0, 15.0), 1)
-            conf["confidence_penalty_worsening_distribution_ratio"] = round(random.uniform(5.0, 15.0), 1)
             conf["confidence_boost_high_activity"] = round(random.uniform(5.0, 25.0), 1)
             conf["confidence_boost_buying_pressure"] = round(random.uniform(5.0, 20.0), 1)
             

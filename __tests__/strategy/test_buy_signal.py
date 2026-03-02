@@ -158,44 +158,61 @@ def test_no_buy_mc_too_high(strategy):
 #     assert ok is False
 
 
-# ── Size multiplier ───────────────────────────────────────────────────────────
+# ── Position sizing ───────────────────────────────────────────────────────────
 
-def test_buy_returns_half_size_low_confidence():
+def test_buy_returns_min_size_at_baseline():
     """
-    When confidence is ≥ min but < good_confidence, size = 0.5.
-    baseline=50 ≥ min=50, but < good=70.
+    When confidence == min_confidence_score, size = min_position_size.
+    We'll set baseline=50, min=50. Result confidence = 50.
     """
     strategy = make_strategy(
         sol_price=SOL,
         baseline_confidence_score=50.0,
         min_confidence_score=50.0,
-        good_confidence_score=70.0,
+        good_confidence_score=100.0,
     )
-    # No boosts: holder_safety_score=0.5 (neutral), no snapshots
+    # No boosts: holder_safety_score=0.5 (neutral), no snapshots => confidence = 50
     state = passing_state()
     state.snapshots = []
     state.holder_safety_score = 0.5
     state.ath_market_cap = 12000.0
     ok, size, _ = strategy.should_buy(state)
     assert ok is True
-    assert size == pytest.approx(0.5)
+    # By default, min_position_size=0.3
+    assert size == pytest.approx(strategy.config.risk.min_position_size)
 
 
-def test_buy_returns_full_size_high_confidence():
+def test_buy_returns_interpolated_size():
     """
-    When confidence ≥ good_confidence, size = 1.0.
-    baseline=70 ≥ good=70.
+    When confidence is between min and 100, size is linearly interpolated.
+    We set baseline=50, min=50. We add logic to get confidence = 75.
+    (75-50)/(100-50) = 0.5 ratio
+    size = min_size + 0.5 * (max_size - min_size)
     """
     strategy = make_strategy(
         sol_price=SOL,
-        baseline_confidence_score=70.0,
+        baseline_confidence_score=50.0,
         min_confidence_score=50.0,
-        good_confidence_score=70.0,
+        good_confidence_score=100.0,
+        confidence_boost_high_holder_safety=25.0, # Will give +25 to get exactly 75
+        holder_safety_threshold_high=0.8,
     )
     state = passing_state()
     state.snapshots = []
-    state.holder_safety_score = 0.5
+    # Trigger max holder safety boost (score >= 0.8)
+    state.holder_safety_score = 0.9
     state.ath_market_cap = 12000.0
-    ok, size, _ = strategy.should_buy(state)
+    
+    ok, size, conf = strategy.should_buy(state)
     assert ok is True
-    assert size == pytest.approx(1.0)
+    
+    # Calculate exactly what size should be based on the dynamic config
+    min_conf = strategy.config.confidence.min_confidence_score
+    max_conf = strategy.config.confidence.good_confidence_score
+    
+    # Verify we are actually in the middle range for a meaningful test
+    assert min_conf < conf < max_conf
+    
+    expected_ratio = (conf - min_conf) / (max_conf - min_conf)
+    expected_size = strategy.config.risk.min_position_size + expected_ratio * (strategy.config.risk.max_position_size - strategy.config.risk.min_position_size)
+    assert size == pytest.approx(expected_size)
