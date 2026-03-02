@@ -6,7 +6,7 @@ Each test covers one exit reason in isolation.
 import pytest
 from datetime import datetime, timezone, timedelta
 from src.pulse.types import SellCategory
-from __tests__.conftest import make_token, make_trade_info, make_strategy
+from __tests__.conftest import make_token, make_trade_info, make_strategy, make_state
 
 
 SOL = 150.0
@@ -28,7 +28,7 @@ def strategy():
 def test_no_sell_without_sol_price():
     strategy = make_strategy(sol_price=0.0)
     trade = make_trade_info()
-    assert strategy.should_sell(trade) is None
+    assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── Gate: category change ─────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ def test_no_sell_without_sol_price():
 def test_sell_category_change(strategy):
     token = make_token(category="migrated")
     trade = make_trade_info(token=token)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.CATEGORY_CHANGE
 
@@ -45,7 +45,7 @@ def test_no_sell_still_in_final_stretch(strategy):
     token = make_token(category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
     # MC hasn't moved, time is fine → no sell
-    assert strategy.should_sell(trade) is None
+    assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── Gate: security ────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ def test_no_sell_still_in_final_stretch(strategy):
 def test_sell_security_failed(strategy):
     token = make_token(top10_holders_percent=99.0)  # Fail security
     trade = make_trade_info(token=token)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.SECURITY_FAILED
 
@@ -65,7 +65,7 @@ def test_sell_stop_loss_triggered(strategy):
     # Set current MC to $7_000: market_cap = 7000 / 150 ≈ 46.67 SOL
     token = make_token(market_cap=46.67, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.STOP_LOSS
 
@@ -75,7 +75,7 @@ def test_no_sell_just_above_stop_loss(strategy):
     # Current MC = $8_500 → above threshold
     token = make_token(market_cap=8500 / SOL, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    assert strategy.should_sell(trade) is None
+    assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── Gate: take profit ─────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ def test_sell_take_profit_triggered(strategy):
     # Set current MC to $20_000
     token = make_token(market_cap=20000 / SOL, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.TAKE_PROFIT
 
@@ -94,7 +94,7 @@ def test_no_sell_just_below_take_profit(strategy):
     # TP threshold = $19_200; current MC = $19_000 → below threshold
     token = make_token(market_cap=19000 / SOL, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    assert strategy.should_sell(trade) is None
+    assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── Gate: max hold time ───────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ def test_sell_max_hold_time_exceeded(strategy):
     token = make_token(category="finalStretch")
     # Held for 310 seconds, max = 300
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=310)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.MAX_HOLD_TIME
 
@@ -111,7 +111,7 @@ def test_sell_max_hold_time_exceeded(strategy):
 def test_no_sell_within_hold_time(strategy):
     token = make_token(category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=100)
-    assert strategy.should_sell(trade) is None
+    assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── SL/TP detail strings ──────────────────────────────────────────────────────
@@ -119,12 +119,12 @@ def test_no_sell_within_hold_time(strategy):
 def test_stop_loss_details_contain_percentage(strategy):
     token = make_token(market_cap=46.67, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert "%" in reason.details
 
 
 def test_take_profit_details_contain_percentage(strategy):
     token = make_token(market_cap=20000 / SOL, category="finalStretch")
     trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
-    reason = strategy.should_sell(trade)
+    reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert "%" in reason.details

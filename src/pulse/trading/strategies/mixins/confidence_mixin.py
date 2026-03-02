@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import logging
-from src.pulse.types import TokenState
+from src.pulse.types import TokenState, TradeTakenInformation
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 logger = logging.getLogger(__name__)
@@ -25,24 +25,69 @@ class SecurityConfidenceMixin:
                 score -= self.config.confidence.confidence_penalty_low_holder_safety * penalty_ratio
         
         # 2. Security Checkup Impact
-        top10_thresh = self.config.confidence.top10_penalty_threshold
+        top10_thresh = self.config.confidence.security_penalty_threshold
         top10_max = self.config.safety.max_top10_percent
         if token.top10_holders_percent > top10_thresh and top10_max > top10_thresh:
-            max_penalty = self.config.confidence.confidence_penalty_high_top10
+            max_penalty = self.config.confidence.confidence_security_penalty_high
             ratio = min(1.0, (token.top10_holders_percent - top10_thresh) / (top10_max - top10_thresh))
             penalty = (max_penalty / 2) + (max_penalty / 2) * ratio
             logger.debug("Token %s top 10 holders own %.1f%% > %s%%. Linear penalty %.1f applied.", token.ticker, token.top10_holders_percent, top10_thresh, penalty)
             score -= penalty
             
-        bundled_thresh = self.config.confidence.bundled_penalty_threshold
+        bundled_thresh = self.config.confidence.security_penalty_threshold
         bundled_max = self.config.safety.max_bundled_percent
         if token.bundled_percent > bundled_thresh and bundled_max > bundled_thresh:
-            max_penalty = self.config.confidence.confidence_penalty_high_bundled
+            max_penalty = self.config.confidence.confidence_security_penalty_high
             ratio = min(1.0, (token.bundled_percent - bundled_thresh) / (bundled_max - bundled_thresh))
             penalty = (max_penalty / 2) + (max_penalty / 2) * ratio
             logger.debug("Token %s bundled percent %.1f%% > %s%%. Linear penalty %.1f applied.", token.ticker, token.bundled_percent, bundled_thresh, penalty)
             score -= penalty
 
+        return score
+
+    def _apply_security_hold_confidence(self, score: float, state: TokenState) -> float:
+        if not state.active_trade:
+            return score
+            
+        trade_bought_time = state.active_trade.time_bought.timestamp()
+        
+        # 1. Holder Exodus
+        trade_snapshots = [s for s in state.snapshots if s.timestamp.timestamp() >= trade_bought_time]
+        if trade_snapshots:
+            max_holders = max(s.holders for s in trade_snapshots)
+        else:
+            max_holders = state.active_trade.token_bought_snapshot.holders
+            
+        current_holders = state.token.holders
+        if current_holders < max_holders and max_holders > 0:
+            drop_ratio = (max_holders - current_holders) / max_holders
+            max_drop = self.config.hold_confidence.max_holder_drop_percent
+            penalty_ratio = min(1.0, drop_ratio / max_drop) if max_drop > 0 else 0.0
+            penalty = self.config.hold_confidence.hold_penalty_holder_exodus * penalty_ratio
+            if penalty > 0:
+                logger.debug("Token %s hold holder exodus penalty %.1f applied.", state.token.ticker, penalty)
+            score -= penalty
+
+        # 2. Safety Breach (Top 10 / Bundled)
+        current_token = state.token
+        top10_thresh = self.config.confidence.security_penalty_threshold
+        top10_max = self.config.safety.max_top10_percent
+        if current_token.top10_holders_percent > top10_thresh and top10_max > top10_thresh:
+            ratio = min(1.0, (current_token.top10_holders_percent - top10_thresh) / (top10_max - top10_thresh))
+            penalty = self.config.hold_confidence.hold_penalty_safety_breach * ratio
+            if penalty > 0:
+                logger.debug("Token %s hold top10 penalty %.1f applied.", current_token.ticker, penalty)
+            score -= penalty
+
+        bundled_thresh = self.config.confidence.security_penalty_threshold
+        bundled_max = self.config.safety.max_bundled_percent
+        if current_token.bundled_percent > bundled_thresh and bundled_max > bundled_thresh:
+            ratio = min(1.0, (current_token.bundled_percent - bundled_thresh) / (bundled_max - bundled_thresh))
+            penalty = self.config.hold_confidence.hold_penalty_safety_breach * ratio
+            if penalty > 0:
+                logger.debug("Token %s hold bundled penalty %.1f applied.", current_token.ticker, penalty)
+            score -= penalty
+            
         return score
 
 
@@ -104,8 +149,8 @@ class ActivityConfidenceMixin:
 
     def _apply_activity_confidence(self, score: float, state: TokenState) -> float:
         # 5. Activity (Txns)
-        now = datetime.now(timezone.utc)
-        old_time = now.timestamp() - self.config.confidence.activity_lookback_seconds
+        now = datetime.now(timezone.utc).timestamp()
+        old_time = now - self.config.confidence.activity_lookback_seconds
         
         old_snapshot = None
         for s in state.snapshots:
@@ -137,7 +182,7 @@ class ActivityConfidenceMixin:
                 score += self.config.confidence.confidence_boost_new_kol * min(new_kols, self.config.confidence.max_kols_inc_for_full_boost)
 
             # Smooth active users watching via moving average (+/- 15s window around target points)
-            recent_snaps = [s.users_watching for s in state.snapshots if s.timestamp.timestamp() >= now.timestamp() - 15.0]
+            recent_snaps = [s.users_watching for s in state.snapshots if s.timestamp.timestamp() >= now - 15.0]
             current_users_vals = recent_snaps + [state.token.active_users_watching]
             current_users_ma = sum(current_users_vals) / len(current_users_vals)
             
@@ -157,13 +202,76 @@ class ActivityConfidenceMixin:
         
         return score
 
+    def _apply_activity_hold_confidence(self, score: float, state: TokenState) -> float:
+        if not state.active_trade:
+            return score
+            
+        now = datetime.now(timezone.utc).timestamp()
+        short_window = self.config.hold_confidence.activity_lookback_short
+        trade_bought_time = state.active_trade.time_bought.timestamp()
+        trade_snapshots = [s for s in state.snapshots if s.timestamp.timestamp() >= trade_bought_time]
+        
+        old_time_short = now - short_window
+        # 3. Hype Death Penalty (Users Watching)
+        if trade_snapshots:
+            max_users = max((s.users_watching for s in trade_snapshots if s.timestamp.timestamp() >= old_time_short), default=0)
+            current_users = state.token.active_users_watching
+            if current_users < max_users and max_users > 0:
+                drop_ratio = (max_users - current_users) / max_users
+                max_drop = self.config.hold_confidence.max_users_watching_drop_percent
+                penalty_ratio = min(1.0, drop_ratio / max_drop) if max_drop > 0 else 0.0
+                penalty = self.config.hold_confidence.hold_penalty_hype_death * penalty_ratio
+                if penalty > 0:
+                    logger.debug("Token %s hold hype death penalty %.1f applied.", state.token.ticker, penalty)
+                score -= penalty
+                
+        # 4. Sell Pressure
+        short_snapshot = next((s for s in reversed(state.snapshots) if s.timestamp.timestamp() <= old_time_short), None)
+                
+        if short_snapshot:
+            new_buys = state.token.buys_total - short_snapshot.buys
+            new_sells = state.token.sells_total - short_snapshot.sells
+            
+            sell_buy_ratio = new_sells / max(1.0, new_buys)
+            if sell_buy_ratio > 1.0:
+                max_ratio = self.config.hold_confidence.max_sell_buy_ratio
+                denom_ratio = max(0.1, max_ratio - 1.0)
+                penalty_ratio = min(1.0, (sell_buy_ratio - 1.0) / denom_ratio)
+                penalty = self.config.hold_confidence.hold_penalty_sell_pressure * penalty_ratio
+                if penalty > 0:
+                    logger.debug("Token %s hold sell pressure penalty %.1f applied.", state.token.ticker, penalty)
+                score -= penalty
+
+            # 5. Peak Velocity Drop Penalty
+            current_txns_short = state.token.txns_total - short_snapshot.txns
+            
+            peak_txns_short = current_txns_short
+            for snap_end in trade_snapshots:
+                snap_time = snap_end.timestamp.timestamp()
+                prior_snap = next((s for s in reversed(state.snapshots) if s.timestamp.timestamp() <= snap_time - short_window), None)
+                if prior_snap:
+                    txns = snap_end.txns - prior_snap.txns
+                    if txns > peak_txns_short:
+                        peak_txns_short = txns
+            
+            if current_txns_short < peak_txns_short and peak_txns_short > 0:
+                drop_ratio = (peak_txns_short - current_txns_short) / peak_txns_short
+                max_drop = self.config.hold_confidence.max_velocity_drop_percent
+                penalty_ratio = min(1.0, drop_ratio / max_drop) if max_drop > 0 else 0.0
+                penalty = self.config.hold_confidence.hold_penalty_velocity_death * penalty_ratio
+                if penalty > 0:
+                    logger.debug("Token %s hold velocity death penalty %.1f applied.", state.token.ticker, penalty)
+                score -= penalty
+
+        return score
+
 
 class ConfidenceMixin(SecurityConfidenceMixin, ChartHealthConfidenceMixin, ActivityConfidenceMixin):
     """Main Mixin for strategy confidence calculations, combining sub-mixins."""
     
     config: StrategyConfig
 
-    def _calculate_confidence(self, state: TokenState, sol_price: float) -> float:
+    def _calculate_buy_confidence(self, state: TokenState, sol_price: float) -> float:
         """
         Calculate confidence score (0-100) based on snapshots & safety.
         Baseline: 50
@@ -176,5 +284,19 @@ class ConfidenceMixin(SecurityConfidenceMixin, ChartHealthConfidenceMixin, Activ
         score = self._apply_security_confidence(score, state)
         score = self._apply_chart_health_confidence(score, state, sol_price)
         score = self._apply_activity_confidence(score, state)
+        
+        return max(0.0, min(100.0, score))
+
+    def _calculate_hold_confidence(self, state: TokenState, sol_price: float) -> float:
+        """
+        Calculate a distinct confidence score for deciding when to sell.
+        """
+        if sol_price <= 0:
+            return 0.0
+            
+        score = self.config.hold_confidence.baseline_hold_confidence
+        
+        score = self._apply_security_hold_confidence(score, state)
+        score = self._apply_activity_hold_confidence(score, state)
         
         return max(0.0, min(100.0, score))

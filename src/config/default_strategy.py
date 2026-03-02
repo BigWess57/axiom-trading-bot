@@ -58,10 +58,8 @@ DEFAULT_STRATEGY_CONFIG = {
     'confidence_penalty_low_holder_safety': 40.0,
 
     ## Top 10 Holders / Bundled
-    'confidence_penalty_high_bundled': 30.0,
-    'confidence_penalty_high_top10': 30.0,
-    'bundled_penalty_threshold': 30.0,
-    'top10_penalty_threshold': 30.0,
+    'confidence_security_penalty_high': 30.0,
+    'security_penalty_threshold': 30.0,
 
     ## ATH Impact
     'ath_impact_threshold': 0.4,
@@ -86,7 +84,26 @@ DEFAULT_STRATEGY_CONFIG = {
     'confidence_boost_high_activity': 15.0,
     'confidence_boost_new_kol': 10.0,
     'confidence_boost_users_watching': 7.0,
+
+    # Hold Confidence Configuration
+    'baseline_hold_confidence': 100.0,
+    'min_hold_confidence_score': 50.0,
     
+    'activity_lookback_short': 30, # short MA (30s)
+    'tx_velocity_lookback_long': 120, # long MA to compare against (120s)
+    'max_velocity_drop_percent': 0.50, # 50% drop in tx/min is max penalty
+    'hold_penalty_velocity_death': 30.0,
+    
+    'max_holder_drop_percent': 0.30, # 30% of holders leaving is max penalty
+    'hold_penalty_holder_exodus': 25.0,
+    
+    'max_users_watching_drop_percent': 0.30, # 30% drop in viewers is max penalty
+    'hold_penalty_hype_death': 15.0,
+    
+    'max_sell_buy_ratio': 2, # 2 sells per buy is max penalty
+    'hold_penalty_sell_pressure': 25.0,
+    
+    'hold_penalty_safety_breach': 30.0, # Linear penalty for Top 10 or bundled %
 }
 
 def get_whole_config():

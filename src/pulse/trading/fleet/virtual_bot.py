@@ -111,7 +111,9 @@ class VirtualBot:
         )
         self.active_positions[pair_address] = updated_trade
 
-        sell_reason = self.strategy.should_sell(updated_trade)
+        strategy_state = self._create_strategy_state(shared_state)
+        strategy_state.active_trade = updated_trade
+        sell_reason = self.strategy.should_sell(updated_trade, strategy_state)
         if sell_reason:
             self._execute_virtual_sell(updated_trade, sell_reason)
             self._check_drawdown_limit()

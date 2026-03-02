@@ -58,10 +58,8 @@ class ConfidenceConfig:
     confidence_penalty_low_holder_safety: float
 
     # Top 10 Holders / Bundled
-    confidence_penalty_high_bundled: float
-    confidence_penalty_high_top10: float
-    bundled_penalty_threshold: float
-    top10_penalty_threshold: float
+    confidence_security_penalty_high: float
+    security_penalty_threshold: float
 
     # ATH Impact
     ath_impact_threshold: float
@@ -86,6 +84,28 @@ class ConfidenceConfig:
     confidence_boost_high_activity: float
     confidence_boost_new_kol: float
     confidence_boost_users_watching: float
+
+
+@dataclass
+class HoldConfidenceConfig:
+    baseline_hold_confidence: float
+    min_hold_confidence_score: float
+    
+    activity_lookback_short: int
+    tx_velocity_lookback_long: int
+    max_velocity_drop_percent: float
+    hold_penalty_velocity_death: float
+    
+    max_holder_drop_percent: float
+    hold_penalty_holder_exodus: float
+    
+    max_users_watching_drop_percent: float
+    hold_penalty_hype_death: float
+    
+    max_sell_buy_ratio: float
+    hold_penalty_sell_pressure: float
+    
+    hold_penalty_safety_breach: float
 
 
 class StrategyConfig:
@@ -148,10 +168,8 @@ class StrategyConfig:
                 confidence_penalty_low_holder_safety=float(d['confidence_penalty_low_holder_safety']),
 
                 # Top 10 Holders / Bundled
-                confidence_penalty_high_bundled=float(d['confidence_penalty_high_bundled']),
-                confidence_penalty_high_top10=float(d['confidence_penalty_high_top10']),
-                bundled_penalty_threshold=float(d['bundled_penalty_threshold']),
-                top10_penalty_threshold=float(d['top10_penalty_threshold']),
+                confidence_security_penalty_high=float(d['confidence_security_penalty_high']),
+                security_penalty_threshold=float(d['security_penalty_threshold']),
 
                 # ATH Impact
                 ath_impact_threshold=float(d['ath_impact_threshold']),
@@ -176,6 +194,22 @@ class StrategyConfig:
                 confidence_boost_high_activity=float(d['confidence_boost_high_activity']),
                 confidence_boost_new_kol=float(d['confidence_boost_new_kol']),
                 confidence_boost_users_watching=float(d['confidence_boost_users_watching'])
+            )
+            
+            self.hold_confidence = HoldConfidenceConfig(
+                baseline_hold_confidence=float(d['baseline_hold_confidence']),
+                min_hold_confidence_score=float(d['min_hold_confidence_score']),
+                activity_lookback_short=int(d['activity_lookback_short']),
+                tx_velocity_lookback_long=int(d['tx_velocity_lookback_long']),
+                max_velocity_drop_percent=float(d['max_velocity_drop_percent']),
+                hold_penalty_velocity_death=float(d['hold_penalty_velocity_death']),
+                max_holder_drop_percent=float(d['max_holder_drop_percent']),
+                hold_penalty_holder_exodus=float(d['hold_penalty_holder_exodus']),
+                max_users_watching_drop_percent=float(d['max_users_watching_drop_percent']),
+                hold_penalty_hype_death=float(d['hold_penalty_hype_death']),
+                max_sell_buy_ratio=float(d['max_sell_buy_ratio']),
+                hold_penalty_sell_pressure=float(d['hold_penalty_sell_pressure']),
+                hold_penalty_safety_breach=float(d['hold_penalty_safety_breach'])
             )
         except KeyError as e:
             raise ValueError(f"Missing required strategy configuration key: {e}")

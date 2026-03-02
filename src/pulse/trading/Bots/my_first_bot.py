@@ -75,9 +75,9 @@ class ExampleTradingBot(BaseTradingBot, BotExtensionsMixin):
             logger.info(f"🚀 BUY SIGNAL for {state.token.ticker} (Size: {position_size_for_buy:.2f} SOL, Confidence: {confidence:.2f})")
             self.execute_trade("BUY", state.token.pair_address, position_size_for_buy=position_size_for_buy)
 
-    def manage_trade(self, trade_info: TradeTakenInformation):
+    def manage_trade(self, trade_info: TradeTakenInformation, state: TokenState):
         """Manage current trades"""
-        sell_reason = self.strategy.should_sell(trade_info)
+        sell_reason = self.strategy.should_sell(trade_info, state)
         if sell_reason:
             self.execute_trade("SELL", trade_info.token_bought_snapshot.pair_address, sell_reason=sell_reason, sell_market_cap=trade_info.current_market_cap)
 
@@ -191,7 +191,7 @@ class ExampleTradingBot(BaseTradingBot, BotExtensionsMixin):
             # Update active trade info with latest market cap data
             updated_trade_info = state.active_trade._replace(current_market_cap=current_mc_usd)
             state.active_trade = updated_trade_info
-            self.manage_trade(updated_trade_info)
+            self.manage_trade(updated_trade_info, state)
         else:
             self.analyze_opportunity(state)
 

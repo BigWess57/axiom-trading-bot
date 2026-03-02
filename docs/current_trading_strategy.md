@@ -39,26 +39,32 @@ A token is considered for purchase only if ALL of the following conditions are m
 - **Pro Traders:** >= 20% of total holders (if holders > 0)
 - **Volume/Fees Ratio:** Volume (USD) / Fees (SOL) <= 20,000
 
-**C. Confidence Score (`_calculate_confidence`)**
+**C. Buy Confidence Score (`_calculate_buy_confidence`)**
 - **Baseline Score:** 30
 - **Minimum Score required:** 50
-- **Good Score:** 70
-- **Adjustments:**
+- **Good Score:** 100
+- **Adjustments (Linear Scaling applied for most):**
     - **Holder Safety:**
-        - High Safety (> 66% safe holders): +10
-        - Low Safety (< 33% safe holders): -30
-    - **ATH Impact:**
+        - High Safety (> 66% safe holders): linear boost up to +10.
+        - Low Safety (< 33% safe holders): linear penalty up to -30.
+    - **Security Penalties:**
+        - Top 10 Holders (> 30%): linear penalty up to -20.
+        - Bundled Supply (> 30%): linear penalty up to -20.
+    - **Chart Health / ATH Impact:**
         - Current Market Cap < 40% of All-Time High: -20
-    - **Distribution Trend (Last 5 snapshots):**
-        - Improving Distribution (MC/Holder ratio decreasing): +10
-        - Worsening Distribution: -10
-    - **Activity (Last 60 seconds):**
-        - High Transaction Count (> 50 txns): +10
-        - Buying Pressure (Buys > Sells): +10
-- **Position size Adjustments (depending on total confidence score):**
-    - **Good Score:** 1 SOL (maximum)
-    - **Minimum Score:** 0.5 SOL
-    - **Bad Score:** Not Traded
+    - **Distribution Trend:**
+        - Improving Distribution (MC/Holder ratio decreasing vs weighted historical average): linear boost up to +10.
+    - **Activity (Last 30 seconds):**
+        - High Transaction velocity (> 3 txns): linear boost up to +15.
+        - Buying Pressure (Buys > Sells): linear boost up to +15.
+    - **Hype & Attention:**
+        - Famous KOLs appearing: +10 per new KOL.
+        - Active Users Watching increasing: linear boost up to +10.
+- **Position Sizing:**
+    - Size is derived linearly from the confidence score.
+    - Starts at `min_position_size` (e.g., 0.1 SOL) when at `min_confidence_score` (50).
+    - Scales up to `max_position_size` (e.g., 1.0 SOL) when at `good_confidence_score` (100).
+    - If score < minimum score, the token is not traded.
 
 **D. Buy Signal Rules (`_check_for_buy_signal`)**
 - **Token Age:** < 10 minutes (600 seconds).
@@ -84,11 +90,21 @@ The bot evaluates open positions for sell conditions on every token update. A se
     - **Reason:** `TAKE_PROFIT`
     - **Condition:** Current Market Cap > Entry Market Cap * (1 + 0.60)
 
-**D. Time-Based Exit**
+**D. Hold Confidence (`_calculate_hold_confidence`)**
+- **Reason:** `LOW_CONFIDENCE`
+- **Condition:** Hold confidence score drops below the minimum threshold (50).
+- **Calculation:** Starts at 100 and applies linear penalties during the trade:
+    - **Velocity Death:** Penalty up to -30 for a sharp drop in tx velocity from its peak.
+    - **Holder Exodus:** Penalty up to -25 if total holders drop from their peak.
+    - **Hype Death (Users Watching):** Penalty up to -15 if active viewers drop.
+    - **Sell Pressure:** Penalty up to -25 for a high sell/buy ratio in the short term.
+    - **Safety Breach:** Penalty up to -30 if Top 10 or Bundled percentages newly exceed safe thresholds.
+
+**E. Time-Based Exit**
 - **Reason:** `MAX_HOLD_TIME`
 - **Condition:** Position held for longer than **5 minutes** (300 seconds).
 
-**E. Token Removal**
+**F. Token Removal**
 - **Reason:** `TOKEN_REMOVED`
 - **Condition:** Token is removed from the tracked category (handled via `on_token_removed` event).
 

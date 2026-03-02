@@ -1,5 +1,5 @@
 """
-Tests for _calculate_confidence().
+Tests for _calculate_buy_confidence().
 
 Each test activates exactly one confidence factor and verifies its
 contribution to the overall score (in addition to the baseline).
@@ -56,32 +56,32 @@ def _bare_state(**overrides):
 
 def test_baseline_with_no_factors(strategy):
     state = _bare_state()
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 
 def test_zero_sol_price_returns_zero(strategy):
     state = _bare_state()
-    assert strategy._calculate_confidence(state, 0.0) == pytest.approx(0.0)
+    assert strategy._calculate_buy_confidence(state, 0.0) == pytest.approx(0.0)
 
 
 # ── Holder safety ─────────────────────────────────────────────────────────────
 
 def test_high_holder_safety_gives_boost(strategy):
     state = _bare_state(holder_safety_score=1.0)  # max > 0.66
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 10.0)
 
 
 def test_mid_holder_safety_no_change(strategy):
     state = _bare_state(holder_safety_score=0.5)  # between 0.33 and 0.66
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 
 def test_low_holder_safety_gives_penalty(strategy):
     state = _bare_state(holder_safety_score=0.0)  # minimum < 0.33
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(max(0.0, BASELINE - 30.0))
 
 
@@ -93,21 +93,21 @@ def test_ath_penalty_when_mc_far_below_ath(strategy):
     $12_000 / $31_000 ≈ 0.387 < ath_impact_threshold=0.4 → penalty -20
     """
     state = _bare_state(ath_market_cap=31_000.0)  # token.market_cap=80 * 150 = 12_000
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE - 20.0)
 
 
 def test_no_ath_penalty_when_mc_near_ath(strategy):
     """Current MC = $12_000; ATH = $13_000 → 12k/13k ≈ 0.92 > 0.4 → no penalty."""
     state = _bare_state(ath_market_cap=13_000.0)
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 
 def test_no_ath_penalty_when_ath_is_zero(strategy):
     """ATH = 0 → condition can't fire (division by zero guard in code)."""
     state = _bare_state(ath_market_cap=0.0)
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 
@@ -146,7 +146,7 @@ def test_improving_distribution_gives_boost(strategy):
     state = _bare_state()
     state.token = token
     state.snapshots = _make_distribution_snapshots([20, 19, 18, 17, 16])
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 10.0)
 
 # def test_still_changes_distribution_without_enough_snapshots(strategy):
@@ -156,7 +156,7 @@ def test_improving_distribution_gives_boost(strategy):
 #     state = _bare_state()
 #     state.token = token
 #     state.snapshots = _make_distribution_snapshots([10, 12, 14, 16]) #One less than lookback
-#     score = strategy._calculate_confidence(state, SOL)
+#     score = strategy._calculate_buy_confidence(state, SOL)
 #     assert score == pytest.approx(BASELINE - 10)
 
 
@@ -191,7 +191,7 @@ def test_high_activity_gives_boost(strategy):
         old_buys=5, new_buys=155,
         old_sells=5, new_sells=55,
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 15.0)
 
 
@@ -202,7 +202,7 @@ def test_buying_pressure_gives_boost(strategy):
         old_buys=5, new_buys=25,   # delta buys=20
         old_sells=5, new_sells=10, # delta sells=5 → buys > sells → +5
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 5.0)
 
 
@@ -213,7 +213,7 @@ def test_no_activity_boost_low_txns(strategy):
         old_buys=5, new_buys=5,    # equal buys/sells → no buying pressure
         old_sells=5, new_sells=5,
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 def test_kol_increase_gives_boost(strategy):
@@ -222,7 +222,7 @@ def test_kol_increase_gives_boost(strategy):
         old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
         old_kols=0, new_kols=2
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 20.0)
 
 def test_users_watching_increase_gives_boost(strategy):
@@ -231,7 +231,7 @@ def test_users_watching_increase_gives_boost(strategy):
         old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
         old_users=0, new_users=50
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE + 5.0)
 
 def test_users_watching_insufficient_increase_no_boost(strategy):
@@ -240,7 +240,7 @@ def test_users_watching_insufficient_increase_no_boost(strategy):
         old_txns=10, new_txns=10, old_buys=5, new_buys=5, old_sells=5, new_sells=5,
         old_users=0, new_users=10
     )
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score == pytest.approx(BASELINE)
 
 
@@ -250,7 +250,7 @@ def test_score_cannot_go_below_zero(strategy):
     """Combined penalties must not produce a negative score."""
     # low safety (-30), ATH penalty (-20) → 30 - 30 - 20 = -20 → clamped to 0
     state = _bare_state(holder_safety_score=0.1, ath_market_cap=100_000.0)
-    score = strategy._calculate_confidence(state, SOL)
+    score = strategy._calculate_buy_confidence(state, SOL)
     assert score >= 0.0
 
 
@@ -275,7 +275,7 @@ def test_score_cannot_exceed_100(strategy):
     state.token.sells_total = 10
     state.holder_safety_score = 0.9
     state.ath_market_cap = 0.0
-    score = strategy_high._calculate_confidence(state, SOL)
+    score = strategy_high._calculate_buy_confidence(state, SOL)
     assert score <= 100.0
 
 def test_missing_config_key_raises_value_error():
@@ -290,13 +290,13 @@ def test_high_top10_gives_penalty(strategy):
     token = make_token(top10_holders_percent=60.0)
     state = _bare_state()
     state.token = token
-    score = strategy._calculate_confidence(state, SOL)
-    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_penalty_high_top10))
+    score = strategy._calculate_buy_confidence(state, SOL)
+    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_security_penalty_high))
 
 def test_high_bundled_gives_penalty(strategy):
     """bundled_percent = 60.0 (max ceiling) -> pulls max linear penalty."""
     token = make_token(bundled_percent=60.0)
     state = _bare_state()
     state.token = token
-    score = strategy._calculate_confidence(state, SOL)
-    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_penalty_high_bundled))
+    score = strategy._calculate_buy_confidence(state, SOL)
+    assert score == pytest.approx(max(0.0, BASELINE - strategy.config.confidence.confidence_security_penalty_high))

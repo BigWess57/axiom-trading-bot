@@ -49,7 +49,7 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
         if not self._pass_buy_rules_checkup(token, past_trades_on_token, sol_price):
             return False, 0.0, 0.0
             
-        confidence = self._calculate_confidence(state, sol_price)
+        confidence = self._calculate_buy_confidence(state, sol_price)
 
         min_confidence_for_buy = self.config.confidence.min_confidence_score
         max_score = self.config.confidence.good_confidence_score
@@ -66,7 +66,7 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
         logger.info(f"SHOULD BUY signal for {token.ticker} with confidence {confidence:.2f} (Size: {position_size:.3f} SOL)")
         return True, position_size, confidence
     
-    def should_sell(self, trade_info: TradeTakenInformation) -> Optional[SellReason]:
+    def should_sell(self, trade_info: TradeTakenInformation, state: TokenState) -> Optional[SellReason]:
         """Evaluate if we should sell this token"""
         token = trade_info.token_bought_snapshot
         
@@ -91,6 +91,13 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
         sl_tp_reason = self._check_for_sl_tp(trade_info)
         if sl_tp_reason:
             return sl_tp_reason
+            
+        hold_trade_confidence = self._calculate_hold_confidence(state, sol_price)
+        if hold_trade_confidence < self.config.hold_confidence.min_hold_confidence_score:
+            return SellReason(
+                category=SellCategory.LOW_CONFIDENCE,
+                details=f"Hold confidence {hold_trade_confidence:.2f} is too low"
+            )
 
         if (datetime.now(timezone.utc) - trade_info.time_bought).total_seconds() > self.config.risk.max_holding_time:
             hold_time_minutes = self.config.risk.max_holding_time / 60

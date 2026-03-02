@@ -221,6 +221,7 @@ class SellCategory(Enum):
     STOP_LOSS = "stop_loss"
     TAKE_PROFIT = "take_profit"
     MAX_HOLD_TIME = "max_hold_time"
+    LOW_CONFIDENCE = "low_confidence"
     TOKEN_REMOVED = "token_removed"
     SHUTDOWN = "shutdown"
 
