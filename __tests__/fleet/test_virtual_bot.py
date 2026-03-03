@@ -160,7 +160,7 @@ def _open_position(bot: VirtualBot, token, buy_mc: float, seconds_held: int = 10
 
 def test_stop_loss_clears_active_position():
     """MC drops below SL threshold → position removed, added to past_trades."""
-    bot = make_bot(stop_loss_pct=0.30)
+    bot = make_bot(initial_stop_loss_pct=0.30)
     buy_sol_price = 150.0
     buy_mc = 12000.0  # USD
     # Token with MC that dropped 40% → below SL (30%)
@@ -179,7 +179,7 @@ def test_stop_loss_clears_active_position():
 
 def test_take_profit_clears_active_position():
     """MC rises above TP threshold → position removed, added to past_trades."""
-    bot = make_bot(take_profit_pct=0.60)
+    bot = make_bot(max_take_profit_pct=0.60)
     buy_sol_price = 150.0
     buy_mc = 12000.0
     # Token with MC that rose 70% → above TP (60%)
@@ -197,7 +197,7 @@ def test_take_profit_clears_active_position():
 
 def test_no_sell_within_limits():
     """MC within SL/TP band, time within limit → position stays open."""
-    bot = make_bot(stop_loss_pct=0.30, take_profit_pct=0.60)
+    bot = make_bot(initial_stop_loss_pct=0.30, max_take_profit_pct=0.60)
     buy_sol_price = 150.0
     buy_mc = 12000.0
     # MC unchanged → well within band
@@ -234,7 +234,8 @@ def test_pnl_calculation_profitable():
     exit_sol_price = sol_price * 1.5
     exit_mc_usd = token.market_cap * exit_sol_price
     bot._current_sol_price = exit_sol_price
-    trade = bot.active_positions[token.pair_address]._replace(current_market_cap=exit_mc_usd)
+    trade = bot.active_positions[token.pair_address]
+    trade.current_market_cap = exit_mc_usd
     bot.active_positions[token.pair_address] = trade
     bot._execute_virtual_sell(trade, SellReason(category=SellCategory.TAKE_PROFIT))
 
@@ -259,7 +260,8 @@ def test_pnl_calculation_loss():
     exit_sol_price = sol_price * 0.70
     exit_mc_usd = token.market_cap * exit_sol_price
     bot._current_sol_price = exit_sol_price
-    trade = bot.active_positions[token.pair_address]._replace(current_market_cap=exit_mc_usd)
+    trade = bot.active_positions[token.pair_address]
+    trade.current_market_cap = exit_mc_usd
     bot.active_positions[token.pair_address] = trade
     bot._execute_virtual_sell(trade, SellReason(category=SellCategory.STOP_LOSS))
 

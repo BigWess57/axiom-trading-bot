@@ -20,9 +20,9 @@ class StrategyRandomizer:
 
             # --- Risk Parameters ---
             # Stop Loss: 10% to 50%
-            conf["stop_loss_pct"] = round(random.uniform(0.10, 0.50), 2)
+            conf["initial_stop_loss_pct"] = round(random.uniform(0.10, 0.50), 2)
             # Take Profit: 20% to 150%
-            conf["take_profit_pct"] = round(random.uniform(0.20, 1.50), 2)
+            conf["max_take_profit_pct"] = round(random.uniform(0.20, 1.50), 2)
             # Max Holding Time: 1 to 10 minutes (60 to 600 seconds)
             conf["max_holding_time"] = random.randint(60, 600)
             

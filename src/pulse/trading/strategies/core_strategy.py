@@ -88,16 +88,16 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
                 details=security_issue
             )
 
-        sl_tp_reason = self._check_for_sl_tp(trade_info)
-        if sl_tp_reason:
-            return sl_tp_reason
-            
         hold_trade_confidence = self._calculate_hold_confidence(state, sol_price)
         if hold_trade_confidence < self.config.hold_confidence.min_hold_confidence_score:
             return SellReason(
                 category=SellCategory.LOW_CONFIDENCE,
                 details=f"Hold confidence {hold_trade_confidence:.2f} is too low"
             )
+
+        sl_tp_reason = self._check_for_sl_tp(trade_info, hold_trade_confidence)
+        if sl_tp_reason:
+            return sl_tp_reason
 
         if (datetime.now(timezone.utc) - trade_info.time_bought).total_seconds() > self.config.risk.max_holding_time:
             hold_time_minutes = self.config.risk.max_holding_time / 60

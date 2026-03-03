@@ -16,8 +16,11 @@ DEFAULT_STRATEGY_CONFIG = {
     'max_daily_trades': 20,         # Max 20 trades per day
 
     # Risk Management
-    'stop_loss_pct': 0.30,          # 30% stop-loss
-    'take_profit_pct': 0.60,        # 60% take-profit
+    'initial_stop_loss_pct': 0.30,  # 30% initial stop-loss
+    'late_entry_rr_ratio': 2.0,     # Target 2x reward for 1x risk on late entries
+    'max_take_profit_pct': 1.50,    # 150% theoretical max TP
+    'confidence_caution_threshold': 70.0, # The hold_confidence score below which we start trailing
+    'trailing_step_buffer_pct': 0.20,     # When trailing, keep SL 20% below the peak PnL
     'sell_at_curve_pct': 0.98,      # 98% sell before graduation (curve percentage)
     'max_holding_time': 60 * 5,     # 5 minutes max hold time
     'max_trades_per_token': 3,      # Max trades per token (re-entry limit)
@@ -42,7 +45,7 @@ DEFAULT_STRATEGY_CONFIG = {
 
     # Buy Signal Rules
     'max_token_age_seconds': 600,   # 10 minutes
-    'min_market_cap': 9000.0,
+    'min_market_cap': 7000.0,
     'max_market_cap': 18000.0,
 
     # Confidence Calculation
@@ -62,7 +65,7 @@ DEFAULT_STRATEGY_CONFIG = {
     'security_penalty_threshold': 30.0,
 
     ## ATH Impact
-    'ath_impact_threshold': 0.4,
+    'ath_impact_threshold': 0.35,
     'confidence_penalty_ath_impact': 20.0,
 
     ## Distribution Ratio

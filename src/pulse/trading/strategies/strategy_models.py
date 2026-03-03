@@ -18,8 +18,11 @@ class RiskConfig:
     max_position_size: float
     min_position_size: float
     max_daily_trades: int
-    stop_loss_pct: float
-    take_profit_pct: float
+    initial_stop_loss_pct: float
+    late_entry_rr_ratio: float
+    max_take_profit_pct: float
+    confidence_caution_threshold: float
+    trailing_step_buffer_pct: float
     sell_at_curve_pct: float
     max_holding_time: int
     max_trades_per_token: int
@@ -131,8 +134,11 @@ class StrategyConfig:
                 max_position_size=float(d['max_position_size']),
                 min_position_size=float(d['min_position_size']),
                 max_daily_trades=int(d['max_daily_trades']),
-                stop_loss_pct=float(d['stop_loss_pct']),
-                take_profit_pct=float(d['take_profit_pct']),
+                initial_stop_loss_pct=float(d['initial_stop_loss_pct']),
+                late_entry_rr_ratio=float(d['late_entry_rr_ratio']),
+                max_take_profit_pct=float(d['max_take_profit_pct']),
+                confidence_caution_threshold=float(d['confidence_caution_threshold']),
+                trailing_step_buffer_pct=float(d['trailing_step_buffer_pct']),
                 sell_at_curve_pct=float(d['sell_at_curve_pct']),
                 max_holding_time=int(d['max_holding_time']),
                 max_trades_per_token=int(d['max_trades_per_token']),

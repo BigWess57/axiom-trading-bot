@@ -235,13 +235,18 @@ class SellReason:
 
 # ============= Trading Information Types =============
 
-class TradeTakenInformation(NamedTuple):
+@dataclass
+class TradeTakenInformation:
     """Information about a trade taken"""
     token_bought_snapshot: PulseToken  # frozen at buy time — for logs/CSV only, never mutated
     buy_market_cap: float
     time_bought: datetime
     current_market_cap: float = 0.0  # updated each tick — used for SL/TP and sell pricing
     current_curve_pct: float = 0.0 # updated each tick - used for curve graduation exit
+    peak_market_cap: float = 0.0 # highest market cap reached while holding
+    highest_trailing_sl_mc: float = 0.0 # highest locked-in trailing stop loss
+    fixed_take_profit_pct: Optional[float] = None # locked in if entered late
+    fixed_stop_loss_pct: Optional[float] = None # locked in if entered late
     position_size: float = 0.0
     confidence: float = 0.0
 

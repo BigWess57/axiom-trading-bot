@@ -14,8 +14,12 @@ Key configuration parameters for the `ExampleTradingBot`:
 | **Max Position Size** | 1 SOL | Maximum amount of SOL to invest per trade. |
 | **Fees** | 3% | Estimated fee percentage per trade (buy + sell). |
 | **Max Daily Trades** | 20 | Limit on the number of trades executed per day. |
-| **Stop Loss** | 30% | Sell if price drops 30% below entry. |
-| **Take Profit** | 60% | Sell if price rises 60% above entry. |
+| **Initial Stop Loss** | 30% | Baseline SL if confidence is high. |
+| **Max Take Profit** | 150% | Maximum target profit for early entries. |
+| **Late Entry R/R** | 2.0 | Risk/Reward ratio applied to late entries. |
+| **Trailing Buffer** | 20% | Trailing SL distance from peak when confidence drops. |
+| **Caution Threshold** | 70 | Hold confidence score below which trailing SL activates. |
+| **Sell At Curve** | 98% | Percentage of bonding curve completion to force sell. |
 | **Max Holding Time** | 5 minutes | Maximum time to hold a position before force selling. |
 | **Active Trade Limit** | 5 | Maximum number of concurrent active trades. |
 | **Cooldown** | 3 minutes | Time to wait before re-entering a token after selling. |
@@ -82,13 +86,20 @@ The bot evaluates open positions for sell conditions on every token update. A se
 - **Reason:** `SECURITY_FAILED`
 - **Condition:** Any of the security checks (listed in Buy Logic) fail during the trade.
 
-**C. Stop Loss / Take Profit (`_check_for_sl_tp`)**
-- **Stop Loss:**
-    - **Reason:** `STOP_LOSS`
-    - **Condition:** Current Market Cap < Entry Market Cap * (1 - 0.30)
-- **Take Profit:**
+**C. Dynamic Stop Loss / Take Profit (`_check_for_sl_tp`)**
+The Stop Loss and Take Profit levels are dynamically calculated based on the entry point relative to the bonding curve and the real-time hold confidence score.
+
+- **Curve Graduation:**
     - **Reason:** `TAKE_PROFIT`
-    - **Condition:** Current Market Cap > Entry Market Cap * (1 + 0.60)
+    - **Condition:** Token reaches the target curve percentage (e.g., 98%).
+- **Fixed Bounds (Late Entry):** Calculated using precise CPAMM math (`virtual_sol^2 / k`) if the maximum possible profit to graduation is less than `max_take_profit_pct`.
+    - **Take Profit (`TAKE_PROFIT`):** Set to the maximum possible profit.
+    - **Stop Loss (`STOP_LOSS`):** Set based on `late_entry_rr_ratio` (e.g., TP / 2.0).
+- **Trailing Stop Loss (Early Entry):**
+    - If expected profit >= `max_take_profit_pct`, Take Profit is fixed at `max_take_profit_pct`.
+    - Stop Loss starts at `initial_stop_loss_pct` below entry.
+    - **Confidence-Driven Trailing Ratchet:** If `hold_trade_confidence` drops below `confidence_caution_threshold` (e.g., 70), a trailing stop loss calculates at `trailing_step_buffer_pct` (e.g., 20%) below the highest recorded market cap (`peak_market_cap`).
+    - *Crucially*, this trailing stop loss acts as a permanent ratchet: It locks in the highest calculated floor. If confidence bounces back up, the tight stop loss remains locked in place to protect the secured profits.
 
 **D. Hold Confidence (`_calculate_hold_confidence`)**
 - **Reason:** `LOW_CONFIDENCE`

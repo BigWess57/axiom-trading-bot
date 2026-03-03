@@ -17,8 +17,12 @@ BUY_MC = 12000.0  # Reference buy market cap in USD
 def strategy():
     return make_strategy(
         sol_price=SOL,
-        stop_loss_pct=0.30,      # Sell if MC drops 30%
-        take_profit_pct=0.60,    # Sell if MC rises 60%
+        initial_stop_loss_pct=0.30,      # Sell if MC drops 30% initially on early entries
+        late_entry_rr_ratio=2.0,
+        max_take_profit_pct=1.50,
+        trailing_step_buffer_pct=0.20,
+        confidence_caution_threshold=70.0,
+        sell_at_curve_pct=0.98,
         max_holding_time=300,    # 5 minutes
     )
 
@@ -61,10 +65,10 @@ def test_sell_security_failed(strategy):
 # ── Gate: stop loss ───────────────────────────────────────────────────────────
 
 def test_sell_stop_loss_triggered(strategy):
-    # Buy MC = $12_000; SL at 30% → sell below $8_400
+    # Buy MC = $12_000; Early Entry Initial SL at 30% → sell below $8_400
     # Set current MC to $7_000: market_cap = 7000 / 150 ≈ 46.67 SOL
     token = make_token(market_cap=46.67, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.STOP_LOSS
@@ -74,26 +78,29 @@ def test_no_sell_just_above_stop_loss(strategy):
     # Buy MC = $12_000; 30% SL threshold = $8_400
     # Current MC = $8_500 → above threshold
     token = make_token(market_cap=8500 / SOL, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
 # ── Gate: take profit ─────────────────────────────────────────────────────────
 
-def test_sell_take_profit_triggered(strategy):
-    # Buy MC = $12_000; TP at 60% → sell above $19_200
-    # Set current MC to $20_000
-    token = make_token(market_cap=20000 / SOL, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+# ── Gate: take profit ─────────────────────────────────────────────────────────
+
+def test_sell_take_profit_triggered_early_entry(strategy):
+    # Buy MC = $12_000, Curve 5%. Plenty of room to max TP of 150%
+    # TP at 150% → sell above $30_000
+    # Set current MC to $31_000
+    token = make_token(market_cap=31000 / SOL, category="finalStretch")
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert reason is not None
     assert reason.category == SellCategory.TAKE_PROFIT
 
 
-def test_no_sell_just_below_take_profit(strategy):
-    # TP threshold = $19_200; current MC = $19_000 → below threshold
-    token = make_token(market_cap=19000 / SOL, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+def test_no_sell_just_below_take_profit_early_entry(strategy):
+    # TP threshold = $30_000; current MC = $29_000 → below threshold
+    token = make_token(market_cap=29000 / SOL, category="finalStretch")
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     assert strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot)) is None
 
 
@@ -118,13 +125,14 @@ def test_no_sell_within_hold_time(strategy):
 
 def test_stop_loss_details_contain_percentage(strategy):
     token = make_token(market_cap=46.67, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert "%" in reason.details
 
 
 def test_take_profit_details_contain_percentage(strategy):
-    token = make_token(market_cap=20000 / SOL, category="finalStretch")
-    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10)
+    # Needs to hit 150% max TP
+    token = make_token(market_cap=31000 / SOL, category="finalStretch")
+    trade = make_trade_info(token=token, buy_market_cap=BUY_MC, seconds_held=10, current_curve_pct=5.0)
     reason = strategy.should_sell(trade, make_state(token=trade.token_bought_snapshot))
     assert "%" in reason.details

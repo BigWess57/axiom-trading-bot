@@ -54,7 +54,7 @@ def test_bot_configs_differ():
     manager._spawn_fleet()
 
     bots = {b.strategy_id: b for b in manager.bots}
-    assert pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_000"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_001"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_002"].config.risk.take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_003"].config.risk.take_profit_pct, abs=0.001)
+    assert pytest.approx(bots["BASE"].config.risk.max_take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_000"].config.risk.max_take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.max_take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_001"].config.risk.max_take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.max_take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_002"].config.risk.max_take_profit_pct, abs=0.001) or pytest.approx(bots["BASE"].config.risk.max_take_profit_pct, abs=0.001) != pytest.approx(bots["Bot_003"].config.risk.max_take_profit_pct, abs=0.001)
 
 
 # ---------------------------------------------------------------------------

@@ -137,7 +137,7 @@ def test_buy_allowed_fresh_token(strategy):
 
 def test_no_buy_mc_too_low(strategy):
     # market_cap=50 * sol=150 = $7_500 < min $9_000
-    state = passing_state(market_cap=50.0, volume_total=60.0)
+    state = passing_state(market_cap=40.0, volume_total=60.0)
     ok, _, _ = strategy.should_buy(state)
     assert ok is False
 

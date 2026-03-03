@@ -68,7 +68,7 @@ class VirtualBot:
         if trade:
             logger.info("[%s] Force closing %s (Removed from %s)", self.strategy_id, pair_address, category)
             #Update the market cap to the latest market cap
-            trade = trade._replace(current_market_cap=latest_market_cap_usd)
+            trade.current_market_cap = latest_market_cap_usd
             self.active_positions[pair_address] = trade
             self._execute_virtual_sell(
                 trade,
@@ -105,10 +105,9 @@ class VirtualBot:
         # Update current_market_cap with the latest price tick.
         # token_snapshot is NEVER touched — it stays frozen at buy time.
         current_mc_usd = shared_state.token.market_cap * self._current_sol_price
-        updated_trade = trade._replace(
-            current_market_cap=current_mc_usd,
-            current_curve_pct=shared_state.token.bonding_curve_percentage
-        )
+        trade.current_market_cap = current_mc_usd
+        trade.current_curve_pct = shared_state.token.bonding_curve_percentage
+        updated_trade = trade
         self.active_positions[pair_address] = updated_trade
 
         strategy_state = self._create_strategy_state(shared_state)
