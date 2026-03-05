@@ -15,6 +15,9 @@ from cryptography.fernet import Fernet
 from typing import Dict, Optional, Union
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+
 from axiomtradeapi.content.endpoints import Endpoints
 
 
@@ -238,6 +241,20 @@ class AuthManager:
         # Initialize cookie manager
         self.cookie_manager = CookieManager()
         
+        # Setup Session with Retry for 526 Server Errors
+        self.session = requests.Session()
+        
+        # Re-try strategy for internal load balancer errors from Axiom
+        retry_strategy = Retry(
+            total=2,
+            status_forcelist=[526],
+            backoff_factor=0.3,
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST", "PUT", "DELETE"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+        
         # Initialize secure token storage
         self.token_storage = SecureTokenStorage(storage_dir)
         
@@ -366,7 +383,7 @@ class AuthManager:
         
         try:
             self.logger.debug(f"Sending login step 1 request for email: {self.username}")
-            response = requests.post(url, headers=headers, json=data, timeout=30)
+            response = self.session.post(url, headers=headers, json=data, timeout=30)
             
             if response.status_code == 200:
                 otp_token = response.cookies.get('auth-otp-login-token')
@@ -417,7 +434,7 @@ class AuthManager:
         
         try:
             self.logger.debug("Sending login step 2 request with OTP code")
-            response = requests.post(url, headers=headers, json=data, timeout=30)
+            response = self.session.post(url, headers=headers, json=data, timeout=30)
             
             if response.status_code == 200:
                 # Extract tokens from response cookies
@@ -492,7 +509,7 @@ class AuthManager:
             # Use the exact endpoint from your curl command
             # refresh_url = 'https://api.axiom.trade/refresh-access-token'
             refresh_url = Endpoints.REFRESH_TOKEN
-            response = requests.post(
+            response = self.session.post(
                 refresh_url,
                 headers=headers,
                 cookies=cookies,
@@ -685,11 +702,49 @@ class AuthManager:
         headers = kwargs.pop('headers', {})
         authenticated_headers = self.get_authenticated_headers(headers)
         
-        # Make the request
-        self.logger.debug(f"Making authenticated {method} request to {url}")
-        response = requests.request(method, url, headers=authenticated_headers, **kwargs)
+        # Re-try logic rotating API version endpoints on 526
+        max_retries = 5
+        import re
         
-        return response
+        # The list of backup generic APIs to try if the main one fails
+        backup_apis = ["api2", "api3", "api4", "api", "api5", "api6"]
+        
+        for attempt in range(max_retries):
+            self.logger.debug(f"Making authenticated {method} request to {url} (Attempt {attempt+1}/{max_retries})")
+            
+            try:
+                response = self.session.request(method, url, headers=authenticated_headers, **kwargs)
+                
+                # If we get 526, don't raise immediately, let's catch it and switch URL
+                if response.status_code == 526 and attempt < max_retries - 1:
+                    self.logger.warning(f"Got 526 on {url}, rotating endpoint...")
+                    
+                    # Try to regex replace apiX.axiom.trade with a different one
+                    current_subdomain = re.search(r'https://(api\d*)\.axiom\.trade', url)
+                    if current_subdomain:
+                        current = current_subdomain.group(1)
+                        # Pick the next backup API that isn't the current one
+                        next_api = next((api for api in backup_apis if api != current), "api3")
+                        url = url.replace(f"//{current}.axiom.trade", f"//{next_api}.axiom.trade")
+                        continue # loop to next attempt
+            except requests.exceptions.RetryError as e:
+                # Our urllib3 adapter might throw a RetryError too if it exhausted its own 5 tries
+                if attempt < max_retries - 1:
+                    self.logger.warning(f"RetryError on {url}, rotating endpoint...")
+                    current_subdomain = re.search(r'https://(api\d*)\.axiom\.trade', url)
+                    if current_subdomain:
+                        current = current_subdomain.group(1)
+                        next_api = next((api for api in backup_apis if api != current), "api3")
+                        url = url.replace(f"//{current}.axiom.trade", f"//{next_api}.axiom.trade")
+                        continue
+                else:
+                    raise
+            
+            # If code reaches here, request succeeded (or failed with non 526)
+            return response
+        
+        # Fallback if loop finishes
+        return self.session.request(method, url, headers=authenticated_headers, **kwargs)
 
 
 # Convenience function for quick authentication

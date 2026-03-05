@@ -52,7 +52,7 @@ class ShadowFleetManager:
         self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG)
         
         # Determine how many random bots to spawn
-        num_random_bots = 500
+        num_random_bots = 2
         logger.info(f"Generating {num_random_bots} randomized strategies...")
         
         # Generate configs

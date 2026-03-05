@@ -237,6 +237,26 @@ class MarketDataMixin:
         except Exception as e:
             raise Exception(f"Failed to get token analysis: {e}")
 
+    def get_market_weather(self) -> Dict:
+        """
+        Get market weather information
+        
+        Returns:
+            Dict: Market weather information
+        """
+        # Ensure we have valid authentication
+        if not self.ensure_authenticated():
+            raise ValueError("Authentication failed. Please login first.")
+        
+        url = f'{self.endpoints.MARKET_LIGHTHOUSE}'
+        
+        try:
+            response = self.auth_manager.make_authenticated_request('GET', url)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            raise Exception(f"Failed to get market weather: {e}")
+
     def get_pair_chart(self,
                     pair_address: str,
                     from_ts: int,

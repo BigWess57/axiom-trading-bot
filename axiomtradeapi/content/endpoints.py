@@ -28,15 +28,16 @@ class Endpoints:
     TOKEN_DETAILS = f"{BaseUrls.API_V6}/token" # /{token_address}
     PORTFOLIO = f"{BaseUrls.API_V6}/portfolio"
     
-    TOKEN_INFO = f"{BaseUrls.API_V3}/token-info"
-    LAST_TRANSACTION = f"{BaseUrls.API_V3}/last-transaction"
-    PAIR_INFO = f"{BaseUrls.API_V3}/pair-info"
-    PAIR_STATS = f"{BaseUrls.API_V3}/pair-stats"
-    MEME_OPEN_POSITIONS = f"{BaseUrls.API_V3}/meme-open-positions"
-    HOLDER_DATA = f"{BaseUrls.API_V3}/holder-data-v4"
-    DEV_TOKENS = f"{BaseUrls.API_V3}/dev-tokens-v3"
-    TOKEN_ANALYSIS = f"{BaseUrls.API_V3}/token-analysis"
-    PAIR_CHART = f"{BaseUrls.API_V3}/pair-chart-v2"
+    TOKEN_INFO = f"{BaseUrls.API_V2}/token-info"
+    LAST_TRANSACTION = f"{BaseUrls.API_V2}/last-transaction"
+    PAIR_INFO = f"{BaseUrls.API_V2}/pair-info"
+    PAIR_STATS = f"{BaseUrls.API_V2}/pair-stats"
+    MEME_OPEN_POSITIONS = f"{BaseUrls.API_V2}/meme-open-positions"
+    HOLDER_DATA = f"{BaseUrls.API_V2}/holder-data-v5"
+    DEV_TOKENS = f"{BaseUrls.API_V2}/dev-tokens-v3"
+    TOKEN_ANALYSIS = f"{BaseUrls.API_V2}/token-analysis"
+    PAIR_CHART = f"{BaseUrls.API_V2}/pair-chart-v2"
+    MARKET_LIGHTHOUSE = f"{BaseUrls.API_V2}/lighthouse"
 
     # Trading
     TRADE_LOCAL = f"{BaseUrls.PUMP_PORTAL}/trade-local"

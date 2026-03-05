@@ -12,13 +12,13 @@ client = AxiomTradeClient(
 )
 
 # Query any Solana wallet balance
-wallet_address = "3xJbAVun5TubvK43w8HYP29kapfXxJGg8HEsRBT7B7XA"
+WALLET_ADDRESS = "3xJbAVun5TubvK43w8HYP29kapfXxJGg8HEsRBT7B7XA"
 
-print(f"🔄 Fetching balance for: {wallet_address}")
+print(f"🔄 Fetching balance for: {WALLET_ADDRESS}")
 
 try:
     # Use the client method directly
-    balance = client.get_sol_balance(wallet_address)
+    balance = client.get_sol_balance(WALLET_ADDRESS)
     
     if balance is not None:
         print(f"✅ Success! Balance: {balance} SOL")

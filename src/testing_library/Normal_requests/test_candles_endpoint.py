@@ -52,7 +52,7 @@ try:
 
     # 2. Calculate timestamps for 'from' and 'to' (30 mins)
     to_ts = int(datetime.now().timestamp() * 1000)
-    from_ts = to_ts - (5 * 60 * 1000) # 30 minutes
+    from_ts = to_ts - (30 * 60 * 1000) # 30 minutes
     
     # 3. Fetch candles
     print(f"Fetching candles from {from_ts} to {to_ts}...")
