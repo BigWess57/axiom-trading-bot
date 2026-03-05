@@ -19,8 +19,14 @@ def test_integration_pulse_and_rest(page: Page):
     Integration test: verifies the full browser websocket pipeline and 
     subsequent REST API calls using StealthApiClient for discovered tokens.
     """
+    class DummyProvider:
+        def __init__(self, page):
+            self.page = page
+        def evaluate_js(self, js_code):
+            return self.page.evaluate(js_code)
+            
     tracker = PulseTracker()
-    client = StealthApiClient(page)
+    client = StealthApiClient(DummyProvider(page))
     
     # Track when the websocket connection is ready
     pulse_connected = False

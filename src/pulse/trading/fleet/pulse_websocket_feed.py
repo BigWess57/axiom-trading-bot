@@ -2,12 +2,11 @@ import asyncio
 import logging
 
 from playwright_stealth_browser.provider import BrowserPulseProvider
+from playwright_stealth_browser.api_client import StealthApiClient
 
 from src.pulse.tracker import PulseTracker
 from src.pulse.trading.fleet.shadow_fleet_manager import ShadowFleetManager
-from src.utils.connection_helpers import create_authenticated_client
 from src.utils.async_utils import bridge_callback
-from src.utils.connection_helpers import save_tokens_to_env
 
 # Configure logging
 logging.basicConfig(
@@ -38,30 +37,7 @@ class PulseWebsocketFeed:
         """Pass SOL price updates to the manager"""
         self.manager.update_sol_price(price)
 
-    async def on_auth_cookies_received(self, cookies: dict):
-        """Pass harvested Playwright cookies down to the AxiomTradeClient to avoid Cloudflare 418 refresh blocks."""
-        try:
-            if self.manager and self.manager.client and hasattr(self.manager.client, 'auth_manager'):
-                auth_token = cookies.get('auth-access-token')
-                refresh_token = cookies.get('auth-refresh-token')
-                
-                if auth_token and refresh_token:
-                    logger.info("🍪 Syncing fresh auth cookies from stealth browser to REST client...")
-                    self.manager.client.auth_manager._set_tokens(
-                        auth_token,
-                        refresh_token,
-                        expires_in=3600,
-                        save_tokens=True
-                    )
-                    try:
-                        save_tokens_to_env(self.manager.client)
-                        logger.debug("💾 Sycned browser auth tokens saved to .env file.")
-                    except Exception as e:
-                        logger.error("❌ Failed to save synced tokens to .env: %s", e)
-                else:
-                    logger.warning("⚠️ Received auth_refresh event, but cookies were missing token data.")
-        except Exception as e:
-            logger.error("❌ Error applying synced browser cookies to auth manager: %s", e)
+
 
     async def run(self):
         """Main Life Cycle"""
@@ -69,12 +45,6 @@ class PulseWebsocketFeed:
         
         # Initialize Manager/Fleet
         await self.manager.initialize()
-        
-        self.manager.client = create_authenticated_client()
-        if self.manager.client is None:
-            logger.error("❌ Failed to create authenticated client.")
-            await self.manager.shutdown()
-            return
 
         provider = BrowserPulseProvider()
         try:
@@ -84,11 +54,18 @@ class PulseWebsocketFeed:
             await self.manager.shutdown()
             return
 
+        # Poll until the background thread sets up the Playwright page
+        while provider.page is None:
+            await asyncio.sleep(0.5)
+            
+        # The provider creates the stealth browser tab. We wrap it in our StealthApiClient
+        # and give it to closed-loop manager to fire JS fetches via the thread
+        self.manager.client = StealthApiClient(provider)
+
         consume_task = asyncio.create_task(
             provider.consume(
                 pulse_cb=self.tracker.process_message,
-                sol_price_cb=self.on_sol_price_update,
-                auth_cb=self.on_auth_cookies_received,
+                sol_price_cb=self.on_sol_price_update
             )
         )
         logger.warning("Browser feed started — waiting for Pulse data...")

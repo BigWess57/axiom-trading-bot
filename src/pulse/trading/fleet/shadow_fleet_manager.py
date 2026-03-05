@@ -3,7 +3,6 @@ import logging
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timezone
 
-from axiomtradeapi.xhr_client import AxiomTradeClient
 from src.pulse.tracker import PulseTracker
 from src.pulse.types import PulseToken, SharedTokenState, TokenSnapshot
 from src.pulse.trading.fleet.virtual_bot import VirtualBot
@@ -31,8 +30,8 @@ class ShadowFleetManager:
         
         self.current_sol_price = 0.0
 
-        self.client: AxiomTradeClient = None
-        self.api_semaphore = asyncio.Semaphore(4)
+        self.client: Any = None
+        self.api_semaphore = asyncio.Semaphore(1)
 
     async def initialize(self):
         """Initialize resources and fleet"""
@@ -51,16 +50,16 @@ class ShadowFleetManager:
         # Always add the base strategy for comparison
         self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG)
         
-        # Determine how many random bots to spawn
-        num_random_bots = 2
-        logger.info(f"Generating {num_random_bots} randomized strategies...")
+        # # Determine how many random bots to spawn
+        # num_random_bots = 2
+        # logger.info(f"Generating {num_random_bots} randomized strategies...")
         
-        # Generate configs
-        randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots)
+        # # Generate configs
+        # randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots)
         
-        # Add them to the fleet
-        for bot_name, conf in randomized_configs.items():
-            self._add_bot(bot_name, conf)
+        # # Add them to the fleet
+        # for bot_name, conf in randomized_configs.items():
+        #     self._add_bot(bot_name, conf)
 
     def _add_bot(self, name: str, config_dict: Dict[str, Any]):
         """Add a bot to the fleet"""
@@ -78,10 +77,22 @@ class ShadowFleetManager:
 
     async def on_token_update(self, token: PulseToken):
         """Multicast Update"""
+        logger.debug(f"Processing update for token: {token.ticker}")
+        
         # 1. Manage Shared State
         if token.pair_address not in self.shared_tokens:
             self.shared_tokens[token.pair_address] = SharedTokenState(token=token)
+            
         state = self.shared_tokens[token.pair_address]
+        
+        # Fallback trigger if 'update' arrived before 'new_token'
+        if not state.is_fetching_data:
+            state.is_fetching_data = True
+            asyncio.create_task(self._process_new_token_workflow(token, state))
+            
+        # Wait safely for the JS Chromium payload to finish gathering holders/chart if still initializing
+        await state.init_event.wait()
+        
         state.token = token # Update latest data
         
         # 2. Enhance State (Snapshot, ATH)
@@ -109,20 +120,18 @@ class ShadowFleetManager:
         
         # Sequentially fetch data (Async to avoid blocking WS loop, but we must AWAIT inside the task)
         # We spawn a background task for the whole workflow so we don't block the WebSocket listener
-        asyncio.create_task(self._process_new_token_workflow(token, state))
+        if not state.is_fetching_data:
+            state.is_fetching_data = True
+            asyncio.create_task(self._process_new_token_workflow(token, state))
 
     async def _process_new_token_workflow(self, token: PulseToken, state: SharedTokenState):
         """
         Background workflow:
-        1. Fetch ATH & Holders (Wait for completion)
+        1. Fetch JS Full Analysis (Chart & Holders concurrently in V8)
         2. Call bot.process_new_token
         """
         if self.client:
-            # Run fetches concurrently and wait for BOTH
-            await asyncio.gather(
-                self._fetch_initial_ath(token, state),
-                self._get_top_holders(token)
-            )
+            await self._fetch_full_token_data(token, state)
         
         # Now that state is populated, notify bots
         for bot in self.bots:
@@ -132,6 +141,9 @@ class ShadowFleetManager:
                 bot.process_new_token(state)
             except Exception as e:
                 logger.error(f"Error in Bot {bot.strategy_id} process_new_token: {e}")
+                
+        # Mark as officially initialized to unblock queued on_token_update events for this token
+        state.init_event.set()
 
     async def on_token_removed(self, category: str, pair_address: str):
         """Handle token removal"""
@@ -175,38 +187,57 @@ class ShadowFleetManager:
             logger.error(f"⚠️ Failed to fetch last transaction for {pair_address}: {e}")
             return None
 
-    async def _get_top_holders(self, token: PulseToken):
+    async def _fetch_full_token_data(self, token: PulseToken, state: SharedTokenState):
         """
-        Fetch top holders and STORE them in shared state.
-        Does NOT check safety (that's the bot's job).
+        Executes a native JS Promise.all payload in Chromium to fetch
+        historical chart data and top holders concurrently.
         """
-        state = self.shared_tokens.get(token.pair_address)
-        if not state:
+        logger.debug("🔍 Fetching full JS token analysis for %s...", token.ticker)
+        loop = asyncio.get_running_loop()
+        result = None
+
+        # Using a python semaphore here to control evaluation rate slightly if desired
+        async with self.api_semaphore:
+            for attempt in range(1, 4):
+                try:
+                    result = await loop.run_in_executor(None, self.client.get_full_token_analysis, token.pair_address)
+                    if result:
+                        break
+                except Exception as e:
+                    if attempt == 3:
+                        logger.warning(f"⚠️ Failed to fetch full analysis for {token.ticker}: {e}")
+                        break
+                    await asyncio.sleep(attempt)
+        
+        if not result:
+            logger.warning(f"⚠️ error getting full token analysis for {token.ticker}")
+            self._set_fallback_ath(token, state, "Error JS Fetch")
             return
 
-        try:
-            logger.debug("🔍 Fetching holders for %s...", token.ticker)
-            loop = asyncio.get_running_loop()
-            holders = None
+        # 1. Process Holders
+        holder_data = result.get('holder_data')
+        if holder_data is not None:
+            if isinstance(holder_data, dict) and holder_data.get('error'):
+                logger.warning(f"⚠️ JS Holders error for {token.ticker}: {holder_data.get('error')}")
+            else:
+                holders = holder_data.get('items', []) if isinstance(holder_data, dict) else holder_data
+                if holders and len(holders) > 2:
+                    state.raw_holders = holders
+                    logger.debug(f"✅ JS Holders fetched for {token.ticker} (Count: {len(holders)})")
+                else:
+                    logger.warning(f"⚠️ JS Holders empty or invalid for {token.ticker}: {holder_data}")
 
-            async with self.api_semaphore:
-                for attempt in range(1, 4):
-                    try:
-                        holders = await loop.run_in_executor(None, self.client.get_holder_data, token.pair_address)
-                        break
-                    except Exception as e:
-                        if attempt == 3:
-                            logger.warning(f"⚠️ Failed to fetch holder data: {e}")
-                            break
-                        await asyncio.sleep(2 * attempt)
-            
-            if holders and len(holders) > 2:
-                # Store RAW holders
-                state.raw_holders = holders
-                logger.debug(f"✅ Holders fetched for {token.ticker} (Count: {len(holders)})")
-                
-        except Exception as e:
-            logger.error("⚠️ Error in holder fetch: %s", e)
+        # 2. Process ATH from Chart
+        chart_data = result.get('chart_data')
+        if chart_data and not (isinstance(chart_data, dict) and chart_data.get('error')):
+            ath = self._extract_ath_from_candles(chart_data)
+            if ath > 0:
+                state.ath_market_cap = ath * token.total_supply
+                logger.debug("📈 JS Fetched & Set Historical ATH for %s: $%.2f", token.ticker, state.ath_market_cap)
+            else:
+                self._set_fallback_ath(token, state, "Max high 0")
+        else:
+            self._set_fallback_ath(token, state, "Chart error")
 
     def _record_snapshot(self, token: PulseToken, state: SharedTokenState):
         """Record a snapshot of token metrics (every ~2 seconds)"""
@@ -238,96 +269,14 @@ class ShadowFleetManager:
         state.snapshots.append(snapshot)
         logger.debug(f"Recorded snapshot for {token.ticker}: {snapshot}")
 
-    async def _fetch_initial_ath(self, token: PulseToken, state: SharedTokenState):
-        """Fetch historical data to set initial ATH"""
-        try:
-            logger.debug("Fetching initial ATH for %s", token.ticker)
-            
-            # 1. Fetch Metadata
-            pair_info, last_tx_data = await self._fetch_metadata_with_retry(token)
-            if not pair_info or not last_tx_data:
-                raise RuntimeError("Failed to retrieve pair info or last tx")
 
-            # 2. Calculate Parameters
-            params = self._calculate_chart_params(pair_info, last_tx_data)
-            
-            # 3. Fetch Candles
-            candles_data = await self._fetch_candles(token.pair_address, params)
-            
-            # 4. Determine ATH
-            ath = self._extract_ath_from_candles(candles_data)
-            
-            if ath > 0:
-                state.ath_market_cap = ath * token.total_supply
-                logger.debug("📈 Fetched & Set Historical ATH for %s: $%.2f", token.ticker, state.ath_market_cap)
-            else:
-                self._set_feedback_ath(token, state, "Max high 0")
 
-        except Exception as e:
-            logger.error("⚠️ Error fetching ATH for %s: %s", token.ticker, e)
-            self._set_feedback_ath(token, state, "Error")
-
-    def _set_feedback_ath(self, token: PulseToken, state: SharedTokenState, reason: str):
+    def _set_fallback_ath(self, token: PulseToken, state: SharedTokenState, reason: str):
         """Fallback to current MC"""
-        logger.debug("DEBUG: %s ATH Fallback: %s", token.ticker, reason)
+        logger.warning("WARNING: %s ATH Fallback: %s", token.ticker, reason)
         state.ath_market_cap = token.market_cap * self.current_sol_price
 
-    async def _fetch_metadata_with_retry(self, token: PulseToken):
-        loop = asyncio.get_running_loop()
-        pair_info = None
-        last_tx_data = None
-        
-        async with self.api_semaphore:
-            for attempt in range(1, 4):
-                try:
-                    pair_info = await loop.run_in_executor(None, self.client.get_pair_info, token.pair_address)
-                    last_tx_data = await loop.run_in_executor(None, self.client.get_last_transaction, token.pair_address)
-                    return pair_info, last_tx_data
-                except Exception as e:
-                    if attempt == 3:
-                        logger.warning("⚠️ Failed to fetch metadata for %s: %s", token.ticker, e)
-                        return None, None
-                    await asyncio.sleep(2 * attempt)
-        return None, None
 
-    def _calculate_chart_params(self, pair_info, last_tx_data):
-        def to_ms(val):
-            if isinstance(val, int): return val
-            if isinstance(val, str):
-                try:
-                    return int(datetime.fromisoformat(val.replace('Z', '+00:00')).timestamp() * 1000)
-                except ValueError:
-                    return None
-            return None
-
-        to_ts = int(datetime.now(timezone.utc).timestamp() * 1000)
-        
-        return {
-            "from_ts": to_ts - (60 * 60 * 1000), # 1 hour ago
-            "to_ts": to_ts,
-            "open_trading": to_ms(pair_info.get("openTrading")),
-            "pair_created_at": to_ms(pair_info.get("createdAt")),
-            "last_transaction_time": to_ms(last_tx_data.get("createdAt")),
-            "v": last_tx_data.get("v") or to_ts
-        }
-
-    async def _fetch_candles(self, pair_address, p):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: self.client.get_pair_chart(
-                pair_address=pair_address,
-                from_ts=p["from_ts"],
-                to_ts=p["to_ts"],
-                open_trading=p["open_trading"],
-                pair_created_at=p["pair_created_at"],
-                last_transaction_time=p["last_transaction_time"],
-                currency="USD",
-                interval="1m",
-                count_bars=30,
-                v=p["v"]
-            )
-        )
 
     def _extract_ath_from_candles(self, candles_data) -> float:
         if not candles_data:

@@ -16,11 +16,17 @@ TEST_DEV = "38xYCF1J1FtY9AbtWVZPSQFDVj7k7E6p9oXTXdUZyK4d"
 TEST_WALLET = "3xJbAVun5TubvK43w8HYP29kapfXxJGg8HEsRBT7B7XA"
 
 
+class DummyProvider:
+    def __init__(self, page):
+        self.page = page
+    def evaluate_js(self, js_code):
+        return self.page.evaluate(js_code)
+
 def setup_client(page: Page) -> StealthApiClient:
     """Helper to navigate and setup the client."""
     page.goto("https://axiom.trade/")
     page.wait_for_load_state("domcontentloaded")
-    return StealthApiClient(page)
+    return StealthApiClient(DummyProvider(page))
 
 
 def test_get_token_info(page: Page):
@@ -142,3 +148,18 @@ def test_get_sol_balance(page: Page):
     print(f"✅ Result: {result}")
     assert result is not None
     assert isinstance(result, float)
+
+def test_get_full_token_analysis(page: Page):
+    client = setup_client(page)
+    print(f"📡 Testing get_full_token_analysis for {TEST_PAIR_CHART}...")
+    result = client.get_full_token_analysis(TEST_PAIR_CHART)
+    print(f"✅ Result keys: {list(result.keys()) if result else None}")
+    assert result is not None
+    assert "chart_data" in result
+    print(f"✅ Chart data: {result['chart_data'].get('bars')[:5]}")
+    assert "holder_data" in result
+    print(f"✅ Holder data:")
+    for i in result['holder_data'][:10]:
+        print(i[0])
+    assert "error" not in result.get("chart_data", {})
+    assert "error" not in result.get("holder_data", {})

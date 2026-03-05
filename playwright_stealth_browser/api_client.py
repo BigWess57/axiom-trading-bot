@@ -6,28 +6,29 @@ This client replaces standard `requests`/`urllib3` calls to bypass Cloudflare
 in the authenticated Chromium tab maintained by BrowserPulseProvider.
 """
 import logging
-from typing import Dict, List, Optional, Any, Union
-from playwright.sync_api import Page
+import asyncio
+from typing import Dict, List, Optional, Any
 from .api_templates import ApiTemplates
+from .endpoints import Endpoints
 
 logger = logging.getLogger(__name__)
 
 class StealthApiClient:
     """ API Client executing REST requests natively in a Playwright browser context. """
-    def __init__(self, page: Page):
+    def __init__(self, provider: Any):
         """
-        Initialize with an active Playwright page object.
-        The page must already be connected to `axiom.trade` with valid cookies/Cloudflare clearance.
+        Initialize with the BrowserPulseProvider instance.
+        The provider handles thread-safe Javascript execution routing to the background Chromium thread.
         """
-        self.page = page
+        self.provider = provider
 
     def execute_js(self, js_code: str) -> Dict[str, Any]:
         """
         Execute an arbitrary javascript fetch block inside the Chromium page context.
         """
         try:
-            # page.evaluate is synchronous when using sync_playwright
-            result = self.page.evaluate(js_code)
+            # Route execution to the thread-safe provider queue
+            result = self.provider.evaluate_js(js_code)
             
             # Check for fetch level failures we bubbled up
             if isinstance(result, dict) and "error" in result:
@@ -38,6 +39,67 @@ class StealthApiClient:
             logger.error(f"Failed to execute fetch in stealth browser context: {e}")
             return None
 
+    def get_full_token_analysis(self, pair_address: str) -> Optional[Dict]:
+        
+        requests_js = f"""
+            async () => {{
+                const fetchWithCredentials = async (url) => {{
+                    try {{
+                        const resp = await fetch(url, {{ credentials: 'include' }});
+                        if (!resp.ok) return {{ error: resp.status, text: await resp.text() }};
+                        return await resp.json();
+                    }} catch (e) {{
+                        return {{ error: e.message }};
+                    }}
+                }};
+                
+                const pairAddress = "{pair_address}";
+                
+                // process a single token's endpoints
+                // Step 1: Fire TX and Info parallel
+                const [txData, pairInfo] = await Promise.all([
+                    fetchWithCredentials(`{Endpoints.LAST_TRANSACTION}?pairAddress=${{pairAddress}}`),
+                    fetchWithCredentials(`{Endpoints.PAIR_INFO}?pairAddress=${{pairAddress}}`)
+                ]);
+                
+                // Step 2: Extract timestamps safely and calculate chart query timeframe
+                const nowMs = Date.now();
+                const fromTs = nowMs - (45 * 60 * 1000);
+                
+                const getMs = (val) => val ? new Date(val).getTime() : 0;
+                const openTrading = getMs(pairInfo?.openTrading);
+                const pairCreatedAt = getMs(pairInfo?.createdAt);
+                const lastTxTime = getMs(txData?.createdAt);
+                const v = txData?.v || nowMs;
+                
+                const chartUrl = `{Endpoints.PAIR_CHART}?pairAddress=${{pairAddress}}&from=${{fromTs}}&to=${{nowMs}}&currency=USD&interval=1m&openTrading=${{openTrading}}&pairCreatedAt=${{pairCreatedAt}}&lastTransactionTime=${{lastTxTime}}&countBars=500&showOutliers=false&isNew=false&v=${{v}}`;
+                
+                // Step 3: Fire Chart and Holders parallel
+                const [chartData, holderData] = await Promise.all([
+                    fetchWithCredentials(chartUrl),
+                    fetchWithCredentials(`{Endpoints.HOLDER_DATA}?pairAddress=${{pairAddress}}&onlyTrackedWallets=false`)
+                ]);
+                
+                return {{
+                    chart_data: chartData,
+                    holder_data: holderData
+                }};
+            }}
+        """
+
+        try:
+            result = self.provider.evaluate_js(requests_js)
+            if isinstance(result, dict):
+                for key in ['chart_data', 'holder_data']:
+                    data = result.get(key)
+                    if isinstance(data, dict) and 'error' in data:
+                        logger.error("Stealth API Fetch Error in %s for %s: HTTP %s | %s", key, pair_address, data.get('error'), data.get('text', ''))
+            return result
+        except Exception as e:
+            logger.error(f"Failed to execute native JS requests for getting single token: {e}")
+            return None
+
+        
     def get_full_token_analysis_batch(self, tokens: List[str]) -> Dict[str, Dict[str, Any]]:
         """
         Highest performance orchestration method.
@@ -50,8 +112,6 @@ class StealthApiClient:
         """
         # Convert python list to javascript array
         tokens_js_array = str(tokens).replace("'", '"')
-        
-        from .endpoints import Endpoints
         
         orchestration_js = f"""
             async () => {{
@@ -113,9 +173,9 @@ class StealthApiClient:
                     results.push(...batchResults);
                     
                     // Delay between batches to stay under rate limits (500ms is safer than 200ms)
-                    if (i + BATCH_SIZE < tokens.length) {{
-                        await new Promise(r => setTimeout(r, 100));
-                    }}
+                    //if (i + BATCH_SIZE < tokens.length) {{
+                    //    await new Promise(r => setTimeout(r, 100));
+                    //}}
                 }}
                 
                 // Package into Python-parseable dict natively
@@ -128,11 +188,13 @@ class StealthApiClient:
         """
         
         try:
-            return self.page.evaluate(orchestration_js)
+            return self.provider.evaluate_js(orchestration_js)
         except Exception as e:
             logger.error(f"Failed to execute native JS orchestration batch: {e}")
             return {}
 
+    
+        
     # --- Market Data Endpoints --- 
 
     def get_token_info(self, pair_address: str) -> Optional[Dict]:

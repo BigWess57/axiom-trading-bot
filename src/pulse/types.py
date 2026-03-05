@@ -1,6 +1,7 @@
 """
 Centralized type definitions for the Pulse trading system.
 """
+import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, NamedTuple
 from datetime import datetime
@@ -323,3 +324,7 @@ class SharedTokenState:
     # Raw Holder Data (List of [address, percentage, balance, ...])
     # fetched once by Manager
     raw_holders: Optional[List[List[Any]]] = None
+    
+    # Coordination flag for startup sync
+    init_event: asyncio.Event = field(default_factory=asyncio.Event)
+    is_fetching_data: bool = False
