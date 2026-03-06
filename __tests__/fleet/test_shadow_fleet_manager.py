@@ -23,10 +23,10 @@ from __tests__.conftest import make_token
 def make_manager() -> ShadowFleetManager:
     """ShadowFleetManager with mocked tracker, recorder, and API client (no I/O)."""
     tracker = MagicMock()
-    with patch("src.pulse.trading.fleet.shadow_fleet_manager.AxiomTradeClient", MagicMock()):
-        with patch("src.pulse.trading.fleet.shadow_fleet_manager.ShadowRecorder"):
-            with patch("src.pulse.trading.fleet.virtual_bot.ShadowRecorder"):
-                manager = ShadowFleetManager(tracker)
+    
+    with patch("src.pulse.trading.fleet.shadow_fleet_manager.ShadowRecorder"):
+        with patch("src.pulse.trading.fleet.virtual_bot.ShadowRecorder"):
+            manager = ShadowFleetManager(tracker)
     manager.current_sol_price = 150.0
     return manager
 
@@ -196,31 +196,6 @@ def test_extract_ath_empty_candles():
     assert manager._extract_ath_from_candles([]) == pytest.approx(0.0)
     assert manager._extract_ath_from_candles(None) == pytest.approx(0.0)
     assert manager._extract_ath_from_candles({}) == pytest.approx(0.0)
-
-
-# ---------------------------------------------------------------------------
-# _calculate_chart_params — pure helper
-# ---------------------------------------------------------------------------
-
-def test_calculate_chart_params_structure():
-    """Verify chart params dict has expected keys and sensible values."""
-    manager = make_manager()
-    pair_info = {
-        "openTrading": "2025-01-01T00:00:00Z",
-        "createdAt": "2025-01-01T00:00:00Z",
-    }
-    last_tx = {
-        "createdAt": "2025-01-01T00:01:00Z",
-        "v": 999999,
-    }
-    params = manager._calculate_chart_params(pair_info, last_tx)
-
-    assert "from_ts" in params
-    assert "to_ts" in params
-    assert params["to_ts"] > params["from_ts"]
-    # from_ts should be ~1 hour before to_ts (within 10s tolerance)
-    diff_ms = params["to_ts"] - params["from_ts"]
-    assert abs(diff_ms - 60 * 60 * 1000) < 10_000
 
 
 # ---------------------------------------------------------------------------

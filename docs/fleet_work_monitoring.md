@@ -43,3 +43,13 @@ This document serves as a historical record of the optimizations and enhancement
   - Added `current_curve_pct` to the live `TradeTakenInformation`.
   - Added `sell_at_curve_pct` to the Strategy Risk Config (defaulted to 98%).
   - Forced a `Take Profit` exit condition the moment the bonding curve hits the threshold, safely exiting positions before Raydium migration.
+
+### 6. SQLite Architecture Migration (`shadow_recorder.py`)
+- **Problem:** Storing increasingly massive datasets in flat CSV files was becoming a bottleneck. It was difficult to cross-reference data for post-run ML/Tabular modeling since the strategy output was combined and decoupled from precise temporal token state and macro-market context.
+- **Solution (Normalized SQLite Database):** 
+  - **4-Table Normalized Schema:** 
+    - `tokens`: Logs immutable token metadata EXACTLY ONCE upon discovery, minimizing duplicate text data.
+    - `token_snapshots`: Continuously logs mutable metrics (Market Cap, Holders, Volume, DB-linked metrics, etc.) every ~2 seconds.
+    - `trades`: Records bot execution data, directly linking back to the precise, specific database state via the `sell_snapshot_id` foreign key.
+    - `market_weather`: Hourly aggregate metrics from `get_market_lighthouse()`, polled via a background task within the `ShadowFleetManager`, storing overarching market sentiment and velocity for Deepmind ML ingestion.
+  - **Trade Linkage:** Modified `SharedTokenState` so that each time the 2-second DB commit fires off, the newly inserted internal row ID flows deep into the `VirtualBot` instances. Upon a sell execution, the `ShadowTradeRecord` caches that very ID, enabling flawless ML cross-referencing capabilities of precise token metrics right before the moment of closure.

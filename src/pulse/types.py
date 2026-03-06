@@ -320,6 +320,10 @@ class SharedTokenState:
     ath_market_cap: float = 0.0
     snapshots: List[TokenSnapshot] = field(default_factory=list)
     last_snapshot_time: Optional[datetime] = None
+    latest_db_snapshot_id: Optional[int] = None
+    
+    # SQLite Database Tracking
+    last_db_snapshot_time: Optional[datetime] = None
     
     # Raw Holder Data (List of [address, percentage, balance, ...])
     # fetched once by Manager

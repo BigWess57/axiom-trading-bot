@@ -70,13 +70,13 @@ class PulseWebsocketFeed:
         )
         logger.warning("Browser feed started — waiting for Pulse data...")
 
-        runtime_seconds = 7200 # 2 hours
-        logger.warning(f"⏰ Bot scheduled to run for {runtime_seconds/60/60:.1f} hours.")
+        runtime_seconds = 1800 # 30 minutes
+        logger.warning(f"⏰ Bot scheduled to run for {runtime_seconds/60:.1f} minutes.")
         
         try:
             await asyncio.wait_for(consume_task, timeout=runtime_seconds)
         except asyncio.TimeoutError:
-            logger.warning(f"⌛ Validated run duration of {runtime_seconds/60/60:.1f} hours completed. Triggering clean shutdown.")
+            logger.warning(f"⌛ Validated run duration of {runtime_seconds/60:.1f} minutes completed. Triggering clean shutdown.")
         except asyncio.CancelledError:
             pass  # Normal shutdown — task was cancelled by stop()
         finally:

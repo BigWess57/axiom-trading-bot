@@ -62,7 +62,7 @@ class VirtualBot:
         self._calculate_safety_score(shared_state)
         self._scan_for_entry(shared_state)
 
-    def process_token_removed(self, pair_address: str, category: str, latest_market_cap_usd: float):
+    def process_token_removed(self, pair_address: str, category: str, latest_market_cap_usd: float, shared_state: SharedTokenState = None):
         """Force close if we hold it"""
         trade = self.active_positions.get(pair_address)
         if trade:
@@ -72,7 +72,8 @@ class VirtualBot:
             self.active_positions[pair_address] = trade
             self._execute_virtual_sell(
                 trade,
-                SellReason(category=SellCategory.TOKEN_REMOVED, details=f"Removed from {category}")
+                SellReason(category=SellCategory.TOKEN_REMOVED, details=f"Removed from {category}"),
+                shared_state
             )
 
     def _scan_for_entry(self, shared_state: SharedTokenState):
@@ -114,7 +115,7 @@ class VirtualBot:
         strategy_state.active_trade = updated_trade
         sell_reason = self.strategy.should_sell(updated_trade, strategy_state)
         if sell_reason:
-            self._execute_virtual_sell(updated_trade, sell_reason)
+            self._execute_virtual_sell(updated_trade, sell_reason, shared_state)
             self._check_drawdown_limit()
 
     def _check_drawdown_limit(self):
@@ -152,7 +153,7 @@ class VirtualBot:
         fee_pct = self.config.account.fees_percentage
         return amount * fee_pct
 
-    def _execute_virtual_sell(self, trade: TradeTakenInformation, reason: SellReason):
+    def _execute_virtual_sell(self, trade: TradeTakenInformation, reason: SellReason, shared_state: SharedTokenState = None):
         """
         All sell data lives on the trade:
           trade.token_bought_snapshot   — buy-time token, for logs/CSV
@@ -202,7 +203,12 @@ class VirtualBot:
         logger.info("[%s] 🔴 SELL %s | PnL: %+.2f%% (Net: %+.4f SOL) | Fees: %.4f | Reason: %s",
                     self.strategy_id, snapshot.ticker, pnl_percent, net_profit, total_fees, reason.category)
         
-        # Log to CSV via Recorder
+        # Log to db via Recorder
+        # We need to grab the latest DB Snapshot ID directly from the shared state
+        snapshot_id = getattr(shared_state.latest_db_snapshot_id, 'latest_db_snapshot_id', None) if shared_state else None
+        if snapshot_id is None:
+            logger.warning("⚠️ No snapshot ID found while selling %s", snapshot.ticker)
+        
         record = ShadowTradeRecord(
             strategy_id=self.strategy_id,
             token_symbol=snapshot.ticker,
@@ -215,7 +221,8 @@ class VirtualBot:
             duration_seconds=duration,
             exit_reason=f"{reason.category}: {reason.details}",
             entry_confidence=trade.confidence,
-            timestamp=datetime.now(timezone.utc).isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            sell_snapshot_id=snapshot_id
         )
         
         self.recorder.log_trade(record)
@@ -243,11 +250,12 @@ class VirtualBot:
         if pair_address in self.active_positions:
             del self.active_positions[pair_address]
 
-    def shutdown(self):
+    def shutdown(self, shared_tokens: Dict[str, SharedTokenState] = None):
         """Shutdown resources"""
-        logger.info("Virtual Bot %s shutting down. All trades are being sold...", self.strategy_id)
+        logger.debug("Virtual Bot %s shutting down. All trades are being sold...", self.strategy_id)
         for trade in list(self.active_positions.values()):
-            self._execute_virtual_sell(trade, SellReason(category=SellCategory.SHUTDOWN))
+            shared_state = shared_tokens.get(trade.token_bought_snapshot.pair_address)
+            self._execute_virtual_sell(trade, SellReason(category=SellCategory.SHUTDOWN), shared_state)
 
     # ------------------------------------------------------------------
     # HELPERS

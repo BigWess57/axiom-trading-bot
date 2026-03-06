@@ -1,19 +1,19 @@
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
+from typing import Dict, List, Any
 
 from src.pulse.tracker import PulseTracker
-from src.pulse.types import PulseToken, SharedTokenState, TokenSnapshot
+from src.pulse.types import PulseToken, SharedTokenState
 from src.pulse.trading.fleet.virtual_bot import VirtualBot
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder
 from src.pulse.trading.fleet.strategy_randomizer import StrategyRandomizer
 from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
+from src.pulse.trading.fleet.shadow_fleet_mixins import ShadowFleetHelpersMixin
 
 logger = logging.getLogger("ShadowFleetManager")
 
-class ShadowFleetManager:
+class ShadowFleetManager(ShadowFleetHelpersMixin):
     """
     The Orchestrator.
     - Owns the shared TokenState (ATH, Snapshots, Holders).
@@ -38,28 +38,31 @@ class ShadowFleetManager:
         logger.info("Initializing Shadow Fleet Manager...")
         self._spawn_fleet()
         logger.info(f"Fleet Ready: {len(self.bots)} bots active.")
+        
+        # Launch Market Weather polling loop
+        asyncio.create_task(self._market_weather_loop())
 
     async def shutdown(self):
         """Shutdown resources and fleet"""
         logger.info("Shadow Fleet Manager shutting down...")
         for bot in self.bots:
-            bot.shutdown()
+            bot.shutdown(self.shared_tokens)
 
     def _spawn_fleet(self):
         """Create the swarm of virtual bots"""
         # Always add the base strategy for comparison
         self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG)
         
-        # # Determine how many random bots to spawn
-        # num_random_bots = 2
-        # logger.info(f"Generating {num_random_bots} randomized strategies...")
+        # Determine how many random bots to spawn
+        num_random_bots = 500
+        logger.info(f"Generating {num_random_bots} randomized strategies...")
         
-        # # Generate configs
-        # randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots)
+        # Generate configs
+        randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots)
         
-        # # Add them to the fleet
-        # for bot_name, conf in randomized_configs.items():
-        #     self._add_bot(bot_name, conf)
+        # Add them to the fleet
+        for bot_name, conf in randomized_configs.items():
+            self._add_bot(bot_name, conf)
 
     def _add_bot(self, name: str, config_dict: Dict[str, Any]):
         """Add a bot to the fleet"""
@@ -96,8 +99,11 @@ class ShadowFleetManager:
         state.token = token # Update latest data
         
         # 2. Enhance State (Snapshot, ATH)
-        # Record snapshot
+        # Record internal array snapshot
         self._record_snapshot(token, state)
+        
+        # Record to SQLite Database
+        self._record_db_snapshot(token, state)
         
         # Check ATH
         current_mc_usd = token.market_cap * self.current_sol_price
@@ -116,6 +122,9 @@ class ShadowFleetManager:
         
         if token.pair_address not in self.shared_tokens:
             self.shared_tokens[token.pair_address] = SharedTokenState(token=token)
+            # Log exact immutable token data to DB exactly once upon discovery
+            self.recorder.log_token(token)
+            
         state = self.shared_tokens[token.pair_address]
         
         # Sequentially fetch data (Async to avoid blocking WS loop, but we must AWAIT inside the task)
@@ -158,143 +167,6 @@ class ShadowFleetManager:
             logger.error(f"Failed to get latest market cap for {pair_address}. Using token_state.token.market_cap (might not be updated)")
             latest_market_cap_usd = token_state.token.market_cap * self.current_sol_price
         for bot in self.bots:
-            bot.process_token_removed(pair_address, category, latest_market_cap_usd)
+            bot.process_token_removed(pair_address, category, latest_market_cap_usd, token_state)
         # Remove token from state
         del self.shared_tokens[pair_address]
-
-    # ------------------------------------------------------------------
-    # HELPERS
-    # ------------------------------------------------------------------
-
-    async def get_latest_market_cap(self, pair_address: str, token_supply: float) -> Optional[float]:
-        """
-        Fetch the latest market cap for a token.
-        """ 
-        # Attempt to get the latest transaction to update the price before selling
-        try:
-            logger.info(f"📉 Rug/Removal detected for {pair_address}. Fetching latest price...")
-            loop = asyncio.get_running_loop()
-            last_tx = await loop.run_in_executor(None, self.client.get_last_transaction, pair_address)
-            
-            if last_tx and 'priceSol' in last_tx:
-                latest_price_sol = float(last_tx['priceSol'])
-                if latest_price_sol > 0:
-                    latest_market_cap_usd = latest_price_sol * token_supply * self.current_sol_price
-                    logger.info(f"Updated Market Cap to ${latest_market_cap_usd:.2f} USD based on latest tx price: {latest_price_sol:.10f} SOL")
-                    return latest_market_cap_usd
-
-        except Exception as e:
-            logger.error(f"⚠️ Failed to fetch last transaction for {pair_address}: {e}")
-            return None
-
-    async def _fetch_full_token_data(self, token: PulseToken, state: SharedTokenState):
-        """
-        Executes a native JS Promise.all payload in Chromium to fetch
-        historical chart data and top holders concurrently.
-        """
-        logger.debug("🔍 Fetching full JS token analysis for %s...", token.ticker)
-        loop = asyncio.get_running_loop()
-        result = None
-
-        # Using a python semaphore here to control evaluation rate slightly if desired
-        async with self.api_semaphore:
-            for attempt in range(1, 4):
-                try:
-                    result = await loop.run_in_executor(None, self.client.get_full_token_analysis, token.pair_address)
-                    if result:
-                        break
-                except Exception as e:
-                    if attempt == 3:
-                        logger.warning(f"⚠️ Failed to fetch full analysis for {token.ticker}: {e}")
-                        break
-                    await asyncio.sleep(attempt)
-        
-        if not result:
-            logger.warning(f"⚠️ error getting full token analysis for {token.ticker}")
-            self._set_fallback_ath(token, state, "Error JS Fetch")
-            return
-
-        # 1. Process Holders
-        holder_data = result.get('holder_data')
-        if holder_data is not None:
-            if isinstance(holder_data, dict) and holder_data.get('error'):
-                logger.warning(f"⚠️ JS Holders error for {token.ticker}: {holder_data.get('error')}")
-            else:
-                holders = holder_data.get('items', []) if isinstance(holder_data, dict) else holder_data
-                if holders and len(holders) > 2:
-                    state.raw_holders = holders
-                    logger.debug(f"✅ JS Holders fetched for {token.ticker} (Count: {len(holders)})")
-                else:
-                    logger.warning(f"⚠️ JS Holders empty or invalid for {token.ticker}: {holder_data}")
-
-        # 2. Process ATH from Chart
-        chart_data = result.get('chart_data')
-        if chart_data and not (isinstance(chart_data, dict) and chart_data.get('error')):
-            ath = self._extract_ath_from_candles(chart_data)
-            if ath > 0:
-                state.ath_market_cap = ath * token.total_supply
-                logger.debug("📈 JS Fetched & Set Historical ATH for %s: $%.2f", token.ticker, state.ath_market_cap)
-            else:
-                self._set_fallback_ath(token, state, "Max high 0")
-        else:
-            self._set_fallback_ath(token, state, "Chart error")
-
-    def _record_snapshot(self, token: PulseToken, state: SharedTokenState):
-        """Record a snapshot of token metrics (every ~2 seconds)"""
-        now = datetime.now(timezone.utc)
-        
-        if state.last_snapshot_time:
-            delta = (now - state.last_snapshot_time).total_seconds()
-            if delta < 2.0:
-                return
-
-        state.last_snapshot_time = now
-        
-        # Create Snapshot
-        snapshot = TokenSnapshot(
-            timestamp=now,
-            market_cap=token.market_cap * self.current_sol_price,
-            txns=token.txns_total,
-            buys=token.buys_total,
-            sells=token.sells_total,
-            holders=token.holders,
-            kols=token.famous_kols,
-            users_watching=token.active_users_watching
-        )
-
-        # Limit history (3 minutes @ 2s = 90 snapshots)
-        if len(state.snapshots) > 100: # generous buffer
-            state.snapshots.pop(0)
-
-        state.snapshots.append(snapshot)
-        logger.debug(f"Recorded snapshot for {token.ticker}: {snapshot}")
-
-
-
-    def _set_fallback_ath(self, token: PulseToken, state: SharedTokenState, reason: str):
-        """Fallback to current MC"""
-        logger.warning("WARNING: %s ATH Fallback: %s", token.ticker, reason)
-        state.ath_market_cap = token.market_cap * self.current_sol_price
-
-
-
-    def _extract_ath_from_candles(self, candles_data) -> float:
-        if not candles_data:
-            return 0.0
-            
-        candles_list = []
-        if isinstance(candles_data, dict):
-            candles_list = candles_data.get('candles') or candles_data.get('bars') or []
-        elif isinstance(candles_data, list):
-            candles_list = candles_data
-
-        max_high = 0.0
-        for candle in candles_list:
-            high = 0.0
-            if isinstance(candle, list) and len(candle) >= 3:
-                 high = float(candle[2])
-            elif isinstance(candle, dict):
-                 high = float(candle.get('h', candle.get('high', 0)))
-            
-            max_high = max(max_high, high)
-        return max_high
