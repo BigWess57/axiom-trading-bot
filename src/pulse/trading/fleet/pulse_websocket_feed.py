@@ -10,7 +10,7 @@ from src.utils.async_utils import bridge_callback
 
 # Configure logging
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("PulseFeed")
@@ -68,19 +68,19 @@ class PulseWebsocketFeed:
                 sol_price_cb=self.on_sol_price_update
             )
         )
-        logger.warning("Browser feed started — waiting for Pulse data...")
+        logger.info("Browser feed started — waiting for Pulse data...")
 
         runtime_seconds = 1800 # 30 minutes
-        logger.warning(f"⏰ Bot scheduled to run for {runtime_seconds/60:.1f} minutes.")
+        logger.info(f"⏰ Bot scheduled to run for {runtime_seconds/60:.1f} minutes.")
         
         try:
             await asyncio.wait_for(consume_task, timeout=runtime_seconds)
         except asyncio.TimeoutError:
-            logger.warning(f"⌛ Validated run duration of {runtime_seconds/60:.1f} minutes completed. Triggering clean shutdown.")
+            logger.info(f"⌛ Validated run duration of {runtime_seconds/60:.1f} minutes completed. Triggering clean shutdown.")
         except asyncio.CancelledError:
             pass  # Normal shutdown — task was cancelled by stop()
         finally:
-            logger.warning("Shutting down the shadow fleet...")
+            logger.info("Shutting down the shadow fleet...")
             provider.stop()
             consume_task.cancel()
             await self.manager.shutdown()

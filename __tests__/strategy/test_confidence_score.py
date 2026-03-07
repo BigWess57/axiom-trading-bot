@@ -29,7 +29,7 @@ def strategy():
         distribution_trend_lookback=5,
         confidence_boost_improving_distribution_ratio=10.0,
         activity_lookback_seconds=60,
-        min_txns_for_boost=50,
+        min_txns_per_min_for_boost=50,
         confidence_boost_high_activity=10.0,
         confidence_boost_buying_pressure=5.0,
         confidence_boost_new_kol=10.0,
@@ -184,7 +184,7 @@ def _activity_state(old_txns: int, new_txns: int, old_buys: int, new_buys: int,
 
 
 def test_high_activity_gives_boost(strategy):
-    """new_txns = 210 - 10 = 200 >= max_txns_inc_for_full_boost=200 → +10.
+    """new_txns = 210 - 10 = 200 >= max_txns_per_min_inc_for_full_boost=200 → +10.
        buys/sells = 150/50 = 3.0 >= max ratio → +5.0. Total = 15.0."""
     state = _activity_state(
         old_txns=10, new_txns=210,
@@ -198,7 +198,7 @@ def test_high_activity_gives_boost(strategy):
 def test_buying_pressure_gives_boost(strategy):
     """new_buys > new_sells → +5."""
     state = _activity_state(
-        old_txns=10, new_txns=30,  # delta=20, below min_txns → no activity boost
+        old_txns=10, new_txns=30,  # delta=20, below min_txns_per_min_for_boost → no activity boost
         old_buys=5, new_buys=25,   # delta buys=20
         old_sells=5, new_sells=10, # delta sells=5 → buys > sells → +5
     )
@@ -207,7 +207,7 @@ def test_buying_pressure_gives_boost(strategy):
 
 
 def test_no_activity_boost_low_txns(strategy):
-    """new_txns = 40 → below min_txns_for_boost=50 → no boost."""
+    """new_txns = 40 (txns_per_min = 40) → below min_txns_per_min_for_boost=50 → no boost."""
     state = _activity_state(
         old_txns=10, new_txns=50,  # delta=40 < 50
         old_buys=5, new_buys=5,    # equal buys/sells → no buying pressure
@@ -263,7 +263,7 @@ def test_score_cannot_exceed_100(strategy):
         confidence_boost_high_activity=10.0,
         confidence_boost_buying_pressure=10.0,
         confidence_boost_improving_distribution_ratio=10.0,
-        min_txns_for_boost=1,
+        min_txns_per_min_for_boost=1,
     )
     state = _activity_state(
         old_txns=0, new_txns=100,

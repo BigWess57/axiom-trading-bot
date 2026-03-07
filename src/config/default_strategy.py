@@ -76,8 +76,8 @@ DEFAULT_STRATEGY_CONFIG = {
     ## Activity
     'activity_lookback_seconds': 60,
 
-    'min_txns_for_boost': 50,
-    'max_txns_inc_for_full_boost': 200,
+    'min_txns_per_min_for_boost': 50,
+    'max_txns_per_min_inc_for_full_boost': 200,
     'max_buy_sell_ratio_inc_for_full_boost': 3.0,
     'min_users_watching_increase': 20,
     'max_users_watching_inc_for_full_boost': 50,

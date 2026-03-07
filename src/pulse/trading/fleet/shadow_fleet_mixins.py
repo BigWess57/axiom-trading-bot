@@ -24,7 +24,7 @@ class ShadowFleetHelpersMixin:
                 latest_price_sol = float(last_tx['priceSol'])
                 if latest_price_sol > 0:
                     latest_market_cap_usd = latest_price_sol * token_supply * self.current_sol_price
-                    logger.info(f"Updated Market Cap to ${latest_market_cap_usd:.2f} USD based on latest tx price: {latest_price_sol:.10f} SOL")
+                    logger.debug(f"Updated Market Cap to ${latest_market_cap_usd:.2f} USD based on latest tx price: {latest_price_sol:.10f} SOL")
                     return latest_market_cap_usd
 
         except Exception as e:

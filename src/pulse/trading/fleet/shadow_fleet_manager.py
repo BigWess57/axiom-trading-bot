@@ -54,7 +54,7 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
         self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG)
         
         # Determine how many random bots to spawn
-        num_random_bots = 500
+        num_random_bots = 100
         logger.info(f"Generating {num_random_bots} randomized strategies...")
         
         # Generate configs
@@ -141,6 +141,9 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
         """
         if self.client:
             await self._fetch_full_token_data(token, state)
+        
+        # Ensure an initial DB snapshot exists *before* bots potentially buy it
+        self._record_db_snapshot(token, state)
         
         # Now that state is populated, notify bots
         for bot in self.bots:

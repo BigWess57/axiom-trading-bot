@@ -66,7 +66,7 @@ class VirtualBot:
         """Force close if we hold it"""
         trade = self.active_positions.get(pair_address)
         if trade:
-            logger.info("[%s] Force closing %s (Removed from %s)", self.strategy_id, pair_address, category)
+            logger.debug("[%s] Force closing %s (Removed from %s)", self.strategy_id, pair_address, category)
             #Update the market cap to the latest market cap
             trade.current_market_cap = latest_market_cap_usd
             self.active_positions[pair_address] = trade
@@ -133,7 +133,7 @@ class VirtualBot:
         market_cap_usd = token.market_cap * self._current_sol_price
         
         # Log
-        logger.info("[%s] 🟢 BUY %s @ $%s MC (Confidence: %.2f)", self.strategy_id, token.ticker, f"{token.market_cap:,.0f}", confidence)
+        logger.debug("[%s] 🟢 BUY %s @ $%s MC (Confidence: %.2f)", self.strategy_id, token.ticker, f"{token.market_cap:,.0f}", confidence)
         
         # Record Trade
         trade = TradeTakenInformation(
@@ -200,12 +200,12 @@ class VirtualBot:
             
         duration = (datetime.now(timezone.utc) - trade.time_bought).total_seconds()
         
-        logger.info("[%s] 🔴 SELL %s | PnL: %+.2f%% (Net: %+.4f SOL) | Fees: %.4f | Reason: %s",
+        logger.debug("[%s] 🔴 SELL %s | PnL: %+.2f%% (Net: %+.4f SOL) | Fees: %.4f | Reason: %s",
                     self.strategy_id, snapshot.ticker, pnl_percent, net_profit, total_fees, reason.category)
         
         # Log to db via Recorder
         # We need to grab the latest DB Snapshot ID directly from the shared state
-        snapshot_id = getattr(shared_state.latest_db_snapshot_id, 'latest_db_snapshot_id', None) if shared_state else None
+        snapshot_id = getattr(shared_state, 'latest_db_snapshot_id', None) if shared_state else None
         if snapshot_id is None:
             logger.warning("⚠️ No snapshot ID found while selling %s", snapshot.ticker)
         

@@ -76,11 +76,11 @@ class ConfidenceConfig:
     # Activity
     activity_lookback_seconds: int
 
-    max_txns_inc_for_full_boost: int
+    max_txns_per_min_inc_for_full_boost: int
     max_buy_sell_ratio_inc_for_full_boost: float
     max_users_watching_inc_for_full_boost: int
     max_kols_inc_for_full_boost: int
-    min_txns_for_boost: int
+    min_txns_per_min_for_boost: int
     min_users_watching_increase: int
 
     confidence_boost_buying_pressure: float
@@ -189,11 +189,11 @@ class StrategyConfig:
                 # Activity
                 activity_lookback_seconds=int(d['activity_lookback_seconds']),
 
-                max_txns_inc_for_full_boost=int(d['max_txns_inc_for_full_boost']),
+                max_txns_per_min_inc_for_full_boost=int(d['max_txns_per_min_inc_for_full_boost']),
                 max_buy_sell_ratio_inc_for_full_boost=float(d['max_buy_sell_ratio_inc_for_full_boost']),
                 max_users_watching_inc_for_full_boost=int(d['max_users_watching_inc_for_full_boost']),
                 max_kols_inc_for_full_boost=int(d['max_kols_inc_for_full_boost']),
-                min_txns_for_boost=int(d['min_txns_for_boost']),
+                min_txns_per_min_for_boost=int(d['min_txns_per_min_for_boost']),
                 min_users_watching_increase=int(d['min_users_watching_increase']),
 
                 confidence_boost_buying_pressure=float(d['confidence_boost_buying_pressure']),
@@ -218,4 +218,4 @@ class StrategyConfig:
                 hold_penalty_safety_breach=float(d['hold_penalty_safety_breach'])
             )
         except KeyError as e:
-            raise ValueError(f"Missing required strategy configuration key: {e}")
+            raise ValueError(f"Missing required strategy configuration key: {e}") from e

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import logging
-from src.pulse.types import TokenState, TradeTakenInformation
+from src.pulse.types import TokenState
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
 
 logger = logging.getLogger(__name__)
@@ -160,11 +160,14 @@ class ActivityConfidenceMixin:
             
         if old_snapshot:
             new_txns = state.token.txns_total - old_snapshot.txns
-            min_txns = self.config.confidence.min_txns_for_boost
-            if new_txns > min_txns:
-                max_inc = self.config.confidence.max_txns_inc_for_full_boost
-                denom = max(1.0, max_inc - min_txns)
-                boost_ratio = min(1.0, (new_txns - min_txns) / denom)
+            lookback_minutes = self.config.confidence.activity_lookback_seconds / 60.0
+            txns_per_min = new_txns / lookback_minutes if lookback_minutes > 0 else 0
+            
+            min_txns_per_min = self.config.confidence.min_txns_per_min_for_boost
+            if txns_per_min > min_txns_per_min:
+                max_inc_per_min = self.config.confidence.max_txns_per_min_inc_for_full_boost
+                denom = max(1.0, max_inc_per_min - min_txns_per_min)
+                boost_ratio = min(1.0, (txns_per_min - min_txns_per_min) / denom)
                 score += self.config.confidence.confidence_boost_high_activity * boost_ratio
             
             new_buys = state.token.buys_total - old_snapshot.buys
