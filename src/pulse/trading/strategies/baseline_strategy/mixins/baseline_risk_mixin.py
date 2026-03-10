@@ -18,7 +18,7 @@ class BaselineRiskMixin:
         
         # Check Curve Graduation
         if trade_info.current_curve_pct >= self.config.risk.sell_at_curve_pct * 100:
-            logger.info(f"Token {ticker} reached bonding curve limit ({trade_info.current_curve_pct}%). Selling.")
+            logger.debug(f"Token {ticker} reached bonding curve limit ({trade_info.current_curve_pct}%). Selling.")
             return SellReason(
                 category=SellCategory.TAKE_PROFIT,
                 details=f"Curve Completion: Hit {trade_info.current_curve_pct}% (Target: {self.config.risk.sell_at_curve_pct * 100}%)"
@@ -29,7 +29,7 @@ class BaselineRiskMixin:
         take_profit_mc = buy_market_cap * (1 + self.config.risk.max_take_profit_pct)
 
         if current_mc_usd < stop_loss_mc:
-            logger.info(f"Token {ticker} triggered Stop Loss.")
+            logger.debug(f"Token {ticker} triggered Stop Loss.")
             loss_pct = ((current_mc_usd - buy_market_cap) / buy_market_cap) * 100
             
             return SellReason(
@@ -38,7 +38,7 @@ class BaselineRiskMixin:
             )
 
         if current_mc_usd > take_profit_mc:
-            logger.info(f"Token {ticker} has reached take profit {self.config.risk.max_take_profit_pct*100:.1f}%.")
+            logger.debug(f"Token {ticker} has reached take profit {self.config.risk.max_take_profit_pct*100:.1f}%.")
             profit_pct = ((current_mc_usd - buy_market_cap) / buy_market_cap) * 100
             return SellReason(
                 category=SellCategory.TAKE_PROFIT,

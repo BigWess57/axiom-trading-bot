@@ -49,3 +49,9 @@ By removing the `ATH Impact` check and the complex distribution tracker, the bot
 
 ## 4. Evaluation Protocol in Shadow Fleet
 This strategy is to be tested extensively in the Shadow Fleet. The core success metric is the isolated Win/Loss ratio. Since the R/R is explicitly fixed at 1:4 (risk 25% to make 100%), the strategy needs a win rate > 20% to break even before fees, and slightly higher to cover them.
+
+# How to run
+```bash
+python -m src.pulse.trading.fleet --baseline
+```
+This triggers `__main__.py`, which initializes the Feed and Manager, and starts the event loop.

@@ -65,7 +65,7 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
         logger.info(f"Generating {num_random_bots} randomized strategies...")
         
         # Generate configs
-        randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots)
+        randomized_configs: Dict[str, Dict[str, Any]] = StrategyRandomizer.generate_randomized_configs(num_random_bots, strategy_type="baseline" if self.baseline_mode else "core")
         
         # Add them to the fleet
         for bot_name, conf in randomized_configs.items():

@@ -10,7 +10,7 @@ from src.utils.async_utils import bridge_callback
 
 # Configure logging
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("PulseFeed")
@@ -23,9 +23,9 @@ class PulseWebsocketFeed:
     - Orchestrates the ShadowFleetManager.
     """
     
-    def __init__(self):
+    def __init__(self, baseline_mode: bool = False):
         self.tracker = PulseTracker()
-        self.manager = ShadowFleetManager(self.tracker)
+        self.manager = ShadowFleetManager(self.tracker, baseline_mode=baseline_mode)
         
         # Link Tracker -> Manager
         # Tracker filters/decodes -> Manager enriches -> Fleet executes
@@ -70,13 +70,15 @@ class PulseWebsocketFeed:
         )
         logger.info("Browser feed started — waiting for Pulse data...")
 
-        runtime_seconds = 3600 # 60 minutes
-        logger.info(f"⏰ Bot scheduled to run for {runtime_seconds/60:.1f} minutes.")
+        runtime_seconds = 36000 # 10 hours
+        minutes = int(runtime_seconds / 60)
+        hours = int(runtime_seconds / 3600)
+        logger.info(f"⏰ Bot scheduled to run for {hours} hours {minutes} minutes.")
         
         try:
             await asyncio.wait_for(consume_task, timeout=runtime_seconds)
         except asyncio.TimeoutError:
-            logger.info(f"⌛ Validated run duration of {runtime_seconds/60:.1f} minutes completed. Triggering clean shutdown.")
+            logger.info(f"⌛ Validated run duration of {hours} hours {minutes} minutes completed. Triggering clean shutdown.")
         except asyncio.CancelledError:
             pass  # Normal shutdown — task was cancelled by stop()
         finally:

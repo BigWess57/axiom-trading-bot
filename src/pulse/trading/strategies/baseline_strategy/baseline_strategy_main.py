@@ -47,7 +47,7 @@ class BaselineStrategy(BaselineSecurityMixin, BaselineBuyRulesMixin, BaselineRis
 
         # All checks passed! 
         # Return True, Fixed Position Size, and a placeholder confidence score of 50.0
-        logger.info(f"[Baseline] ✨ BUY SIGNAL FOR {token.ticker} - Momentum matched!")
+        logger.debug(f"[Baseline] ✨ BUY SIGNAL FOR {token.ticker} - Momentum matched!")
         return True, self.config.risk.max_position_size, 50.0
 
     def should_sell(self, trade_info: TradeTakenInformation, state: TokenState) -> Optional[SellReason]:
@@ -59,7 +59,7 @@ class BaselineStrategy(BaselineSecurityMixin, BaselineBuyRulesMixin, BaselineRis
         # Check max holding time
         if (datetime.now(timezone.utc) - trade_info.time_bought).total_seconds() > self.config.risk.max_holding_time:
             hold_time_minutes = self.config.risk.max_holding_time / 60
-            logger.info(f"Max holding time of {hold_time_minutes} minutes for {token.ticker} reached. Selling.")
+            logger.debug(f"Max holding time of {hold_time_minutes} minutes for {token.ticker} reached. Selling.")
             return SellReason(
                 category=SellCategory.MAX_HOLD_TIME,
                 details=f"Held for {hold_time_minutes:.1f} minutes"

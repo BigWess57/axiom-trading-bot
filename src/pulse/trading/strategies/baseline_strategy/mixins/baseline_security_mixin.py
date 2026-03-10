@@ -36,11 +36,9 @@ class BaselineSecurityMixin:
         
         state.holder_safety_score = score
         
-        is_safe = score >= self.config.safety.holder_safe_threshold
         
-        log_level = logging.DEBUG if is_safe else logging.INFO
         msg = (f"Holder Safety for {state.token.ticker}: Score {score:.2f} ({low_balance_count}/{total_checked} low balance)")
-        logger.log(log_level, msg)
+        logger.debug(msg)
 
     def _security_checkup(self, token: PulseToken, sol_price: float, holder_safety_score: float) -> Optional[str]:
         """
