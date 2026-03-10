@@ -10,7 +10,7 @@ from src.utils.async_utils import bridge_callback
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("PulseFeed")
@@ -70,7 +70,7 @@ class PulseWebsocketFeed:
         )
         logger.info("Browser feed started — waiting for Pulse data...")
 
-        runtime_seconds = 1800 # 30 minutes
+        runtime_seconds = 3600 # 60 minutes
         logger.info(f"⏰ Bot scheduled to run for {runtime_seconds/60:.1f} minutes.")
         
         try:

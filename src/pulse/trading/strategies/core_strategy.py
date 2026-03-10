@@ -94,7 +94,7 @@ class CoreStrategy(SecurityMixin, RiskMixin, BuyRulesMixin, ConfidenceMixin):
                 category=SellCategory.LOW_CONFIDENCE,
                 details=f"Hold confidence {hold_trade_confidence:.2f} is too low"
             )
-
+        
         sl_tp_reason = self._check_for_sl_tp(trade_info, hold_trade_confidence)
         if sl_tp_reason:
             return sl_tp_reason

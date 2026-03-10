@@ -8,7 +8,9 @@ from src.pulse.trading.fleet.virtual_bot import VirtualBot
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder
 from src.pulse.trading.fleet.strategy_randomizer import StrategyRandomizer
 from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
+from src.config.baseline_strategy_config import get_baseline_config
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
+from src.pulse.trading.strategies.baseline_strategy.baseline_models import BaselineStrategyConfig
 from src.pulse.trading.fleet.shadow_fleet_mixins import ShadowFleetHelpersMixin
 
 logger = logging.getLogger("ShadowFleetManager")
@@ -21,9 +23,10 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
     - Multicasts updates to the Fleet of VirtualBots.
     """
     
-    def __init__(self, tracker: PulseTracker):
+    def __init__(self, tracker: PulseTracker, baseline_mode: bool = False):
         self.tracker = tracker
         self.recorder = ShadowRecorder()
+        self.baseline_mode = baseline_mode
         
         self.bots: List[VirtualBot] = []
         self.shared_tokens: Dict[str, SharedTokenState] = {} # Shared State
@@ -50,11 +53,15 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
 
     def _spawn_fleet(self):
         """Create the swarm of virtual bots"""
-        # Always add the base strategy for comparison
-        self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG)
-        
+        if self.baseline_mode:
+            logger.info("Spawning baseline fleet in isolated mode...")
+            self._add_bot("BASELINE_BOT_1", get_baseline_config(), strategy_type="baseline")
+        else:
+            # Always add the base strategy for comparison
+            self._add_bot("BASE", DEFAULT_STRATEGY_CONFIG, strategy_type="core")
+            
         # Determine how many random bots to spawn
-        num_random_bots = 100
+        num_random_bots = 500
         logger.info(f"Generating {num_random_bots} randomized strategies...")
         
         # Generate configs
@@ -62,12 +69,18 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
         
         # Add them to the fleet
         for bot_name, conf in randomized_configs.items():
-            self._add_bot(bot_name, conf)
+            if self.baseline_mode:
+                self._add_bot(bot_name, conf, strategy_type="baseline")
+            else:
+                self._add_bot(bot_name, conf, strategy_type="core")
 
-    def _add_bot(self, name: str, config_dict: Dict[str, Any]):
+    def _add_bot(self, name: str, config_dict: Dict[str, Any], strategy_type: str = "core"):
         """Add a bot to the fleet"""
-        strategy_config = StrategyConfig(config_dict)
-        bot = VirtualBot(name, strategy_config, self.recorder)
+        if strategy_type == "baseline":
+            strategy_config = BaselineStrategyConfig(config_dict)
+        else:
+            strategy_config = StrategyConfig(config_dict)
+        bot = VirtualBot(name, strategy_config, self.recorder, strategy_type=strategy_type)
         self.bots.append(bot)
 
     def update_sol_price(self, price: float):
@@ -140,7 +153,11 @@ class ShadowFleetManager(ShadowFleetHelpersMixin):
         2. Call bot.process_new_token
         """
         if self.client:
-            await self._fetch_full_token_data(token, state)
+            if self.baseline_mode:
+                await self._fetch_holder_data(token, state)
+                # No need to set fallback ATH here since we are not using it in the baseline strategy
+            else:
+                await self._fetch_full_token_data(token, state)
         
         # Ensure an initial DB snapshot exists *before* bots potentially buy it
         self._record_db_snapshot(token, state)

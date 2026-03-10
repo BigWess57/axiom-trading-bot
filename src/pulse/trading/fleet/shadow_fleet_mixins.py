@@ -84,6 +84,45 @@ class ShadowFleetHelpersMixin:
         else:
             self._set_fallback_ath(token, state, "Chart error")
 
+    async def _fetch_holder_data(self, token: PulseToken, state: SharedTokenState):
+        """
+        Executes a lightweight JS fetch in Chromium to get ONLY top holders.
+        Used by the baseline strategy where we don't need historical chart ATH calculations.
+        """
+        logger.debug("🔍 Fetching JS holder data for %s...", token.ticker)
+        loop = asyncio.get_running_loop()
+        result = None
+
+        async with self.api_semaphore:
+            for attempt in range(1, 4):
+                try:
+                    # Client already has 'get_holder_data'
+                    result = await loop.run_in_executor(None, self.client.get_holder_data, token.pair_address, False)
+                    if result:
+                        break
+                except Exception as e:
+                    if attempt == 3:
+                        logger.warning(f"⚠️ Failed to fetch holder data for {token.ticker}: {e}")
+                        break
+                    await asyncio.sleep(attempt)
+        
+        if not result:
+            logger.warning(f"⚠️ error getting holder data for {token.ticker}")
+            self._set_fallback_ath(token, state, "Baseline Fast Import Fallback")
+            return
+            
+        # 1. Process Holders
+        if isinstance(result, dict) and result.get('error'):
+            logger.warning(f"⚠️ JS Holders error for {token.ticker}: {result.get('error')}")
+        else:
+            holders = result.get('items', []) if isinstance(result, dict) else result if isinstance(result, list) else []
+            if holders and len(holders) > 2:
+                state.raw_holders = holders
+                logger.debug(f"✅ JS Holders fetched for {token.ticker} (Count: {len(holders)})")
+            else:
+                logger.warning(f"⚠️ JS Holders empty or invalid for {token.ticker}: {result}")
+
+
     def _set_fallback_ath(self, token: PulseToken, state: SharedTokenState, reason: str):
         """Fallback to current MC"""
         logger.warning("WARNING: %s ATH Fallback: %s", token.ticker, reason)

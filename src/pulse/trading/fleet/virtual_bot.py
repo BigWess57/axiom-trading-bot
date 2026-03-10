@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, List
+from typing import Dict, List, Any
 from datetime import datetime, timezone
 
 from src.pulse.types import SharedTokenState, TradeTakenInformation, SellReason, TokenState, TradeResult, PulseToken, SellCategory, BotGlobalState
@@ -18,10 +18,11 @@ class VirtualBot:
     - Uses SharedTokenState for market data.
     """
     
-    def __init__(self, name: str, config: StrategyConfig, recorder: ShadowRecorder):
+    def __init__(self, name: str, config: Any, recorder: ShadowRecorder, strategy_type: str = "core"):
         self.strategy_id = name
         self.config = config
         self.recorder = recorder
+        self.strategy_type = strategy_type
         
         # Internal State: PairAddress -> TradeTakenInformation
         self.active_positions: Dict[str, TradeTakenInformation] = {}
@@ -39,8 +40,13 @@ class VirtualBot:
         self._current_sol_price = 0.0
 
         # Initialize Strategy
-        self.strategy = CoreStrategy(
-            config=self.config, get_sol_price=lambda: self._current_sol_price)
+        if self.strategy_type == "baseline":
+            from src.pulse.trading.strategies.baseline_strategy.baseline_strategy_main import BaselineStrategy
+            self.strategy = BaselineStrategy(
+                config=self.config, get_sol_price=lambda: self._current_sol_price)
+        else:
+            self.strategy = CoreStrategy(
+                config=self.config, get_sol_price=lambda: self._current_sol_price)
 
     def process_update(self, shared_state: SharedTokenState, sol_price: float):
         """

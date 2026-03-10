@@ -4,7 +4,7 @@ import json
 from typing import Dict, List, Any
 from pathlib import Path
 
-def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, configs_path: str = None):
+def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, configs_path: str = None, baseline_mode: bool = False):
     """
     Analyzes the Shadow Fleet trade logs.
     Groups trades by strategy_id and calculates key performance metrics.
@@ -109,11 +109,16 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
         # Print Config if available
         if configs_data and res['strategy_id'] in configs_data:
             c = configs_data[res['strategy_id']]
-            # Format some key parameters in a readable way
-            print(f"    [RISK] SL: {int(c.get('initial_stop_loss_pct', 0)*100)}% | TP: {int(c.get('max_take_profit_pct', 0)*100)}% | Max Hold: {int(c.get('max_holding_time', 0)/60)}m | Min MC: {c.get('min_market_cap', 0):.0f} | Base Buy Conf: {c.get('baseline_confidence_score', 0)}")
-            print(f"    [HOLDING] Min Hold Conf: {c.get('min_hold_confidence_score', 0)} | Vel Penalty: {c.get('hold_penalty_velocity_death', 0)} | Hype Pen: {c.get('hold_penalty_hype_death', 0)} | Esc Pen: {c.get('hold_penalty_holder_exodus', 0)}")
-            print(f"    [SAFETY] T_High: {c.get('holder_safety_threshold_high', 0)} | T_Low: {c.get('holder_safety_threshold_low', 0)} | Penalty (LHS): {c.get('confidence_penalty_low_holder_safety', 0)}")
-            print(f"    [BOOSTS] Boost (HA): {c.get('confidence_boost_high_activity', 0)} | Boost (BP): {c.get('confidence_boost_buying_pressure', 0)} | Txns/mReq: {c.get('min_txns_per_min_for_boost', 0)} | LB(s): {c.get('activity_lookback_seconds', 0)}")
+            if baseline_mode:
+                print(f"    [RISK] SL: {int(c.get('initial_stop_loss_pct', 0)*100)}% | TP: {int(c.get('max_take_profit_pct', 0)*100)}% | Max Hold: {int(c.get('max_holding_time', 0)/60)}m | Min MC: {c.get('min_market_cap', 0):.0f}")
+                print(f"    [MOMENTUM] Min Txns/min: {c.get('min_txns_per_min', 0)} | Min B/S Ratio: {c.get('min_buy_sell_ratio', 0):.1f} | Min Users Watch Inc: {c.get('min_users_watching_increase', 0)} | Lookback(s): {c.get('activity_lookback_seconds', 0)}")
+                print(f"    [SAFETY] Holder Min SOL: {c.get('min_holder_sol_balance', 0)} | Safe Threshold: {c.get('holder_safe_threshold', 0)}")
+            else:
+                # Format some key parameters in a readable way
+                print(f"    [RISK] SL: {int(c.get('initial_stop_loss_pct', 0)*100)}% | TP: {int(c.get('max_take_profit_pct', 0)*100)}% | Max Hold: {int(c.get('max_holding_time', 0)/60)}m | Min MC: {c.get('min_market_cap', 0):.0f} | Base Buy Conf: {c.get('baseline_confidence_score', 0)}")
+                print(f"    [HOLDING] Min Hold Conf: {c.get('min_hold_confidence_score', 0)} | Vel Penalty: {c.get('hold_penalty_velocity_death', 0)} | Hype Pen: {c.get('hold_penalty_hype_death', 0)} | Esc Pen: {c.get('hold_penalty_holder_exodus', 0)}")
+                print(f"    [SAFETY] T_High: {c.get('holder_safety_threshold_high', 0)} | T_Low: {c.get('holder_safety_threshold_low', 0)} | Penalty (LHS): {c.get('confidence_penalty_low_holder_safety', 0)}")
+                print(f"    [BOOSTS] Boost (HA): {c.get('confidence_boost_high_activity', 0)} | Boost (BP): {c.get('confidence_boost_buying_pressure', 0)} | Txns/mReq: {c.get('min_txns_per_min_for_boost', 0)} | LB(s): {c.get('activity_lookback_seconds', 0)}")
             print("-" * 120)
             
         displayed += 1
@@ -129,5 +134,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_n", type=int, default=20, help="Number of top strategies to display")
     parser.add_argument("--configs_path", default="data/config_logs/fleet_configs.json", help="Path to the JSON configs mapping file")
     
+    parser.add_argument("--baseline", action="store_true", help="Format output for baseline strategies")
+    
     args = parser.parse_args()
-    analyze_fleet_logs(args.db_path, args.min_trades, args.top_n, args.configs_path)
+    analyze_fleet_logs(args.db_path, args.min_trades, args.top_n, args.configs_path, args.baseline)

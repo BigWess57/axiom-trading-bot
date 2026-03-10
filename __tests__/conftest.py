@@ -18,6 +18,7 @@ from src.pulse.types import (
     TradeResult,
     SellReason,
     SellCategory,
+    SharedTokenState,
 )
 from src.pulse.trading.strategies.strategy_models import StrategyConfig
 from src.pulse.trading.strategies.core_strategy import CoreStrategy
@@ -120,6 +121,17 @@ def make_state(token: Optional[PulseToken] = None, **overrides) -> TokenState:
     defaults.update(overrides)
     return TokenState(**defaults)
 
+def make_state_from_shared_state(shared_state: SharedTokenState, **overrides) -> TokenState:
+    """Make a TokenState from a SharedTokenState"""
+    defaults = dict(
+        token=shared_state.token,
+        past_trades=[],
+        ath_market_cap=shared_state.token.market_cap,
+        snapshots=shared_state.snapshots,
+        holder_safety_score=0.8,   # High safety by default → confidence boost
+    )
+    defaults.update(overrides)
+    return TokenState(**defaults)
 
 # ---------------------------------------------------------------------------
 # Trade helpers
