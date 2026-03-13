@@ -1,8 +1,5 @@
 import random
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
 from typing import Dict, Any
 
 from src.config.default_strategy import DEFAULT_STRATEGY_CONFIG
@@ -127,6 +124,6 @@ class StrategyRandomizer:
 
             configs[bot_id] = conf
             
-        logger.info(f"Generated {num_configs} strategy configs")
+        logger.info("Generated %d strategy configs", num_configs)
 
         return configs
