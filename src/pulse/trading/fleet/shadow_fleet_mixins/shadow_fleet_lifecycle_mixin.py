@@ -19,11 +19,11 @@ logger = logging.getLogger("ShadowFleetManager")
 
 class ShadowFleetLifecycleMixin:
     """Mixin for handling bot spawning, adding bots, and evolutionary loops."""
-    # Type hints for the linter to know these are defined on the manager subclass
-    current_generation: int
-    max_bots: int
-    bots: list
-    bot_index_map: dict
+    # Type hints and default values for the linter to know these are defined on the manager subclass
+    current_generation: int = 0
+    max_bots: int = 500
+    bots: list = None
+    bot_index_map: dict = None
 
     def _spawn_fleet(self):
         """Create the swarm of virtual bots"""
