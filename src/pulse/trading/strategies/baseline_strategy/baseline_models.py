@@ -47,6 +47,7 @@ class BaselineStrategyConfig:
     """Configuration for baseline trading strategy"""
     
     def __init__(self, config_dict: Dict[str, Any]):
+        self.raw_config = config_dict.copy()
         d = config_dict
         
         try:

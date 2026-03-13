@@ -120,6 +120,7 @@ class StrategyConfig:
         Handles mapping flat keys to nested config objects.
         Raises ValueError if any required key is missing.
         """
+        self.raw_config = config_dict.copy()
         d = config_dict
         
         try:

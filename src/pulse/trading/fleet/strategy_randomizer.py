@@ -127,16 +127,6 @@ class StrategyRandomizer:
 
             configs[bot_id] = conf
             
-        # Save to lookup table on disk
-        log_dir = Path("data/config_logs")
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        config_path = log_dir / f"{strategy_type}_fleet_configs_{timestamp}.json"
-        
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(configs, f, indent=4)
-            
-        logger.info(f"Generated {num_configs} strategy configs and saved map to {config_path}")
+        logger.info(f"Generated {num_configs} strategy configs")
 
         return configs
