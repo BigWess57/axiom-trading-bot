@@ -9,11 +9,11 @@ from src.pulse.types import SharedTokenState
 from src.pulse.trading.fleet.virtual_bot import VirtualBot
 from src.pulse.trading.fleet.shadow_recorder import ShadowRecorder
 
-from src.pulse.trading.fleet.shadow_fleet_data_mixin import ShadowFleetDataMixin
-from src.pulse.trading.fleet.shadow_fleet_events_mixin import ShadowFleetEventsMixin
-from src.pulse.trading.fleet.shadow_fleet_lifecycle_mixin import ShadowFleetLifecycleMixin
-from src.pulse.trading.fleet.shadow_fleet_recording_mixin import ShadowFleetRecordingMixin
-from src.pulse.trading.fleet.shadow_fleet_weather_mixin import ShadowFleetWeatherMixin
+from src.pulse.trading.fleet.mixins.shadow_fleet_data_mixin import ShadowFleetDataMixin
+from src.pulse.trading.fleet.mixins.shadow_fleet_events_mixin import ShadowFleetEventsMixin
+from src.pulse.trading.fleet.mixins.shadow_fleet_lifecycle_mixin import ShadowFleetLifecycleMixin
+from src.pulse.trading.fleet.mixins.shadow_fleet_recording_mixin import ShadowFleetRecordingMixin
+from src.pulse.trading.fleet.mixins.shadow_fleet_weather_mixin import ShadowFleetWeatherMixin
 
 logger = logging.getLogger("ShadowFleetManager")
 
