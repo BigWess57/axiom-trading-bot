@@ -200,6 +200,7 @@ class VirtualBot:
         self.global_state.total_trades += 1
         self.global_state.total_pnl += net_profit
         self.global_state.current_balance += net_profit
+        self.global_state.max_drawdown = min(self.global_state.max_drawdown, self.global_state.current_balance - self.config.account.starting_balance)
         if net_profit > 0:
             self.global_state.winning_trades += 1
         self.global_state.win_rate = (self.global_state.winning_trades / self.global_state.total_trades) * 100

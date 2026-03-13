@@ -3,8 +3,9 @@ import argparse
 import json
 from typing import Dict, List, Any
 from pathlib import Path
+from datetime import datetime
 
-def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, configs_path: str = None, baseline_mode: bool = False):
+def analyze_fleet_logs(db_path: str, min_trades_per_hour: float = 5.0, top_n: int = 20, configs_path: str = None, baseline_mode: bool = False):
     """
     Analyzes the Shadow Fleet trade logs.
     Groups trades by strategy_id and calculates key performance metrics.
@@ -35,12 +36,35 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
         conn = sqlite3.connect(path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT strategy_id, profit, fees_paid FROM trades")
+        
+        # Calculate duration
+        cursor.execute("SELECT MIN(timestamp), MAX(timestamp) FROM trades")
+        min_ts_str, max_ts_str = cursor.fetchone()
+        
+        total_hours = 0.0
+        if min_ts_str and max_ts_str:
+            try:
+                # Timestamps are ISO formatted
+                min_ts = datetime.fromisoformat(min_ts_str.replace('Z', '+00:00'))
+                max_ts = datetime.fromisoformat(max_ts_str.replace('Z', '+00:00'))
+                total_hours = (max_ts - min_ts).total_seconds() / 3600.0
+            except Exception as e:
+                print(f"Warning: Failed to parse timestamps for duration: {e}")
+        
+        # If run was extremely short or parsing failed, default to at least 1 hour for rate calculation
+        effective_hours = max(total_hours, 1.0)
+        min_trades = max(1, int(min_trades_per_hour * effective_hours))
+        
+        cursor.execute("SELECT strategy_id, profit, fees_paid, exit_reason FROM trades")
         for row in cursor.fetchall():
             strat_id = row['strategy_id']
             if strat_id not in strategies_data:
                 strategies_data[strat_id] = []
-            strategies_data[strat_id].append({'profit': row['profit'], 'fees_paid': row['fees_paid']})
+            strategies_data[strat_id].append({
+                'profit': row['profit'], 
+                'fees_paid': row['fees_paid'],
+                'exit_reason': row['exit_reason']
+            })
         conn.close()
     except Exception as e:
         print(f"Failed to read SQLite DB: {e}")
@@ -61,11 +85,21 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
         total_fees = 0.0
         max_loss = 0.0
         max_win = 0.0
+        exit_reasons_count: Dict[str, int] = {}
         
         for trade in trades:
             profit = float(trade['profit'])
             total_pnl += profit
             total_fees += float(trade['fees_paid'])
+            
+            # Extract main category from exit reason (e.g., "SellCategory.STOP_LOSS: hit -25%" -> "STOP_LOSS")
+            raw_reason = trade.get('exit_reason', 'UNKNOWN')
+            if raw_reason and ':' in raw_reason:
+                category = raw_reason.split(':')[0].replace('SellCategory.', '')
+            else:
+                category = str(raw_reason).replace('SellCategory.', '')
+            
+            exit_reasons_count[category] = exit_reasons_count.get(category, 0) + 1
             
             if profit > 0:
                 winning_trades += 1
@@ -83,7 +117,8 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
             'total_fees': total_fees,
             'max_win': max_win,
             'max_loss': max_loss,
-            'avg_pnl_per_trade': total_pnl / trade_count if trade_count > 0 else 0
+            'avg_pnl_per_trade': total_pnl / trade_count if trade_count > 0 else 0,
+            'exit_reasons': exit_reasons_count
         })
 
     # Sort primarily by Total PnL (descending)
@@ -92,10 +127,12 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
     # Print Results
     print(f"\n{'='*120}")
     print(f"FLEET ANALYTICS REPORT ({len(strategies_data)} Total Strategies evaluated)")
-    print(f"Showing Top {top_n} strategies with at least {min_trades} trades.")
+    print("BASELINE MODE" if baseline_mode else "CORE MODE")
+    print(f"Run Duration: {total_hours:.2f} hours")
+    print(f"Showing Top {top_n} strategies with at least {min_trades} trades ({min_trades_per_hour} trades/hr).")
     print(f"{'='*120}")
     
-    header = f"{'Strategy ID':<15} | {'Trades':<8} | {'Win Rate':<10} | {'Total PnL':<10} | {'Max Win':<10} | {'Max Loss':<10}"
+    header = f"{'Strategy ID':<15} | {'Trades':<8} | {'Win Rate':<10} | {'Total PnL':<10} | {'Max Win':<10} | {'Max Loss':<10} | {'Total Fees':<10}"
     print(header)
     print("-" * 120)
     
@@ -104,7 +141,11 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
         if displayed >= top_n:
             break
             
-        print(f"{res['strategy_id']:<15} | {res['trades']:<8} | {res['win_rate']:>6.1f}%   | {res['total_pnl']:>10.4f} | {res['max_win']:>10.4f} | {res['max_loss']:>10.4f}")
+        print(f"{res['strategy_id']:<15} | {res['trades']:<8} | {res['win_rate']:>6.1f}%   | {res['total_pnl']:>10.4f} | {res['max_win']:>10.4f} | {res['max_loss']:>10.4f} | {res['total_fees']:>10.4f}")
+        
+        # Print Exit Reasons
+        reasons_str = " | ".join([f"{k}: {v}" for k, v in sorted(res['exit_reasons'].items(), key=lambda item: item[1], reverse=True)])
+        print(f"    [EXITS] {reasons_str}")
         
         # Print Config if available
         if configs_data and res['strategy_id'] in configs_data:
@@ -130,11 +171,11 @@ def analyze_fleet_logs(db_path: str, min_trades: int = 10, top_n: int = 20, conf
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze Shadow Fleet tracking logs.")
     parser.add_argument("db_path", help="Path to the shadow_run_*.db SQLite file")
-    parser.add_argument("--min_trades", type=int, default=10, help="Minimum number of trades to be included in ranking")
+    parser.add_argument("--min_trades_per_hour", type=float, default=5.0, help="Minimum number of trades per hour to be included in ranking")
     parser.add_argument("--top_n", type=int, default=20, help="Number of top strategies to display")
     parser.add_argument("--configs_path", default="data/config_logs/fleet_configs.json", help="Path to the JSON configs mapping file")
     
     parser.add_argument("--baseline", action="store_true", help="Format output for baseline strategies")
     
     args = parser.parse_args()
-    analyze_fleet_logs(args.db_path, args.min_trades, args.top_n, args.configs_path, args.baseline)
+    analyze_fleet_logs(args.db_path, args.min_trades_per_hour, args.top_n, args.configs_path, args.baseline)

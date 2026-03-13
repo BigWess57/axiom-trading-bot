@@ -23,11 +23,11 @@ This document serves as a historical record of the optimizations and enhancement
 - Built an analysis tool to parse the massive `shadow_trades_{timestamp}.csv` files.
 - **Run Command:**
   ```bash
-  PYTHONPATH=. python3 src/pulse/scripts/analyze_fleet.py <PATH_TO_CSV> --min_trades 10 --top_n 20 --configs_path <PATH_TO_CONFIG_JSON> 
+  PYTHONPATH=. python3 src/pulse/scripts/analyze_fleet.py <PATH_TO_CSV> --min_trades_per_hour 5 --top_n 20 --configs_path <PATH_TO_CONFIG_JSON> [--baseline]
   ```
-  (example: PYTHONPATH=. python3 src/pulse/scripts/analyze_fleet.py data/shadow_logs/shadow_trades_20260224_005134.csv --min_trades 20 --top_n 20 --configs_path data/config_logs/fleet_configs_20260224_005134.json)
+  (example: PYTHONPATH=. python3 src/pulse/scripts/analyze_fleet.py data/shadow_logs/shadow_run_20260311_115100.db --min_trades_per_hour 5 --top_n 20 --configs_path data/config_logs/baseline_fleet_configs_20260311_115100.json --baseline)
 - **Filtering & Ranking:**
-  - Enforces statistical significance (drops bots with fewer than `X` trades, defaulting to 10).
+  - Enforces statistical significance (drops bots with fewer than `X` trades per hour, defaulting to 5).
   - Ranks surviving bots by **Total Realized PnL**.
 - **Lookup Integration:**
   - Ingests the corresponding `fleet_configs_{timestamp}.json` file.

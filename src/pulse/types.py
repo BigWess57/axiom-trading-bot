@@ -307,6 +307,7 @@ class BotGlobalState:
     win_rate: float = 0.0
     total_trades: int = 0
     winning_trades: int = 0
+    max_drawdown: float = 0.0
     max_allowed_drawdown: float = 0.0
 
 

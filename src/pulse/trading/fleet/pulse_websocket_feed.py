@@ -71,8 +71,9 @@ class PulseWebsocketFeed:
         logger.info("Browser feed started — waiting for Pulse data...")
 
         runtime_seconds = 36000 # 10 hours
-        minutes = int(runtime_seconds / 60)
         hours = int(runtime_seconds / 3600)
+        minutes = int(runtime_seconds % 3600 / 60)
+        
         logger.info(f"⏰ Bot scheduled to run for {hours} hours {minutes} minutes.")
         
         try:
