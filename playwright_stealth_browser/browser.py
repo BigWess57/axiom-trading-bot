@@ -26,7 +26,8 @@ import sys
 def get_chrome_binary() -> str | None:
     """Auto-detect Playwright's Chromium binary (cross-platform)."""
     if sys.platform == "win32":
-        playwright_cache = os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright")
+        local_app_data = os.environ.get("LOCALAPPDATA", os.path.expanduser("~\\AppData\\Local"))
+        playwright_cache = os.path.join(local_app_data, "ms-playwright")
         paths = glob.glob(f"{playwright_cache}\\chromium-*\\chrome-win*\\chrome.exe")
     else:
         playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
