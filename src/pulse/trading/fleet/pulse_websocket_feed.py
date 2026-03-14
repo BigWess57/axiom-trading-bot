@@ -70,7 +70,7 @@ class PulseWebsocketFeed:
         )
         logger.info("Browser feed started — waiting for Pulse data...")
 
-        runtime_seconds = 36000 # 10 hours
+        runtime_seconds = 86400 # 24 hours
         hours = int(runtime_seconds / 3600)
         minutes = int(runtime_seconds % 3600 / 60)
         
