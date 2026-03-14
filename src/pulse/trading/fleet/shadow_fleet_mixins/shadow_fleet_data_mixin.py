@@ -13,7 +13,7 @@ class ShadowFleetDataMixin:
         Fetch the latest market cap for a token.
         """ 
         try:
-            logger.info(f"📉 Rug/Removal detected for {pair_address}. Fetching latest price...")
+            logger.debug(f"📉 Rug/Removal detected for {pair_address}. Fetching latest price...")
             loop = asyncio.get_running_loop()
             last_tx = await loop.run_in_executor(None, self.client.get_last_transaction, pair_address)
             

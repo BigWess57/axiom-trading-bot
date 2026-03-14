@@ -45,7 +45,7 @@ class ShadowFleetManager(
         self.api_semaphore = asyncio.Semaphore(1)
         
         # Evolution Tracking
-        self.evolution_interval_minutes = 60
+        self.evolution_interval_minutes = 120
         self.current_generation = 0
         self.max_bots = 500
         

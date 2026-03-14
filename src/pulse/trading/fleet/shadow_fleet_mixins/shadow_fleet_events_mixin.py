@@ -52,7 +52,7 @@ class ShadowFleetEventsMixin:
 
     async def on_new_token(self, token: PulseToken):
         """Handle new token discovery"""
-        logger.info(f"🆕 New Token: {token.ticker}")
+        logger.debug(f"🆕 New Token: {token.ticker}")
         
         if token.pair_address not in self.shared_tokens:
             self.shared_tokens[token.pair_address] = SharedTokenState(token=token)
@@ -94,7 +94,7 @@ class ShadowFleetEventsMixin:
 
     async def on_token_removed(self, category: str, pair_address: str):
         """Handle token removal"""
-        logger.info(f"❌ Token Removed: {pair_address}")
+        logger.debug(f"❌ Token Removed: {pair_address}")
         token_state = getattr(self, "shared_tokens", {}).get(pair_address)
         if not token_state:
             logger.warning(f"Token {pair_address} not found in shared tokens")
