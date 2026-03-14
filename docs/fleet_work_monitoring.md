@@ -53,3 +53,9 @@ This document serves as a historical record of the optimizations and enhancement
     - `trades`: Records bot execution data, directly linking back to the precise, specific database state via the `sell_snapshot_id` foreign key.
     - `market_weather`: Hourly aggregate metrics from `get_market_lighthouse()`, polled via a background task within the `ShadowFleetManager`, storing overarching market sentiment and velocity for Deepmind ML ingestion.
   - **Trade Linkage:** Modified `SharedTokenState` so that each time the 2-second DB commit fires off, the newly inserted internal row ID flows deep into the `VirtualBot` instances. Upon a sell execution, the `ShadowTradeRecord` caches that very ID, enabling flawless ML cross-referencing capabilities of precise token metrics right before the moment of closure.
+
+## 3. Monitoring performance
+We can monitor performance of the fleet, so we can calculate how many bots we can run at once, using the python profiler : 
+```bash
+PYTHONPATH=. python -m cProfile -s cumtime -m src.pulse.trading.fleet [--baseline] > profile_results.txt
+```
