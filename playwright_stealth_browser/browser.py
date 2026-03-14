@@ -21,10 +21,17 @@ logger = logging.getLogger(__name__)
 AUTH_FILE = "playwright_stealth_browser/.auth/axiom_auth_sb.json"
 
 
+import sys
+
 def get_chrome_binary() -> str | None:
-    """Auto-detect Playwright's Chromium binary (WSL-compatible)."""
-    playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
-    paths = glob.glob(f"{playwright_cache}/chromium-*/chrome-linux*/chrome")
+    """Auto-detect Playwright's Chromium binary (cross-platform)."""
+    if sys.platform == "win32":
+        playwright_cache = os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright")
+        paths = glob.glob(f"{playwright_cache}\\chromium-*\\chrome-win*\\chrome.exe")
+    else:
+        playwright_cache = os.path.expanduser("~/.cache/ms-playwright")
+        paths = glob.glob(f"{playwright_cache}/chromium-*/chrome-linux*/chrome")
+        
     return paths[0] if paths else None
 
 
